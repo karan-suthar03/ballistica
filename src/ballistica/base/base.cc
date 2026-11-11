@@ -640,6 +640,19 @@ void BaseFeatureSet::RunAppToCompletion() {
     StartApp();
   }
 
+#if BA_PLATFORM_WEB
+  // The browser owns the event loop. RunMainThreadEventLoopToCompletion()
+  // hands our loop to emscripten_set_main_loop(), which never returns: it
+  // unwinds this stack with a JS exception. With wasm exceptions that
+  // unwind runs C++ destructors, so a scoped GIL release here would
+  // *re-acquire* the GIL on the way out and leave the browser main thread
+  // holding it forever (deadlocking every other thread). Release it for
+  // good instead; main-thread code takes it explicitly when needed.
+  Python::PermanentlyReleaseGIL();
+  g_base->app_adapter->RunMainThreadEventLoopToCompletion();
+  return;
+#endif
+
   // Let go of the GIL while we're running.
   Python::ScopedInterpreterLockRelease gil_release;
 

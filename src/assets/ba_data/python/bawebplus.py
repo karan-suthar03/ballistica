@@ -266,9 +266,33 @@ def _push(call: Callable, *args: Any) -> None:
 
 
 def attach(plus: PlusAppSubsystem) -> None:
-    """Give a PlusAppSubsystem the parts native plus normally provides."""
+    """Give a PlusAppSubsystem the parts native plus normally provides.
+
+    Called while app.plus is still being constructed. The cloud can be
+    made right away, but AccountV2Subsystem's constructor reads
+    app.plus (to register for connectivity callbacks), which would be a
+    subsystem dependency loop now -- so accounts get built lazily on
+    first access, by which point app.plus exists.
+    """
     plus.cloud = _make_cloud()
-    plus.accounts = _make_accounts()
+
+    base_cls = type(plus)
+
+    class WebPlusAppSubsystem(base_cls):  # type: ignore[valid-type,misc]
+        """PlusAppSubsystem with lazily-created offline accounts."""
+
+        _web_accounts: Any = None
+
+        @property
+        def accounts(self) -> Any:  # type: ignore[override]
+            """Offline account subsystem (created on first use)."""
+            if self._web_accounts is None:
+                self._web_accounts = _make_accounts()
+            return self._web_accounts
+
+    WebPlusAppSubsystem.__name__ = base_cls.__name__
+    WebPlusAppSubsystem.__qualname__ = base_cls.__qualname__
+    plus.__class__ = WebPlusAppSubsystem
 
 
 def _make_cloud() -> Any:

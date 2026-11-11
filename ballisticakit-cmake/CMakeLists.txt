@@ -1299,11 +1299,22 @@ if(EMSCRIPTEN)
     -sALLOW_MEMORY_GROWTH=1
     -sINITIAL_MEMORY=256MB
     -sSTACK_SIZE=5MB
-    -sPTHREAD_POOL_SIZE=16
+    # Every thread is a Web Worker, and workers can only be spawned while
+    # the browser main thread is idle; the engine's main thread blocks
+    # waiting for new threads to start, so all threads must come from
+    # this pre-spawned pool (engine threads + Python's thread pools).
+    # STRICT=2 turns pool exhaustion into a clear error instead of a
+    # silent deadlock. Python threads need more than the 64KB default.
+    -sPTHREAD_POOL_SIZE=48
+    -sPTHREAD_POOL_SIZE_STRICT=2
+    -sDEFAULT_PTHREAD_STACK_SIZE=1MB
     -sWASM_BIGINT=1
     -sFORCE_FILESYSTEM=1
     -sEXPORTED_FUNCTIONS=_main,__PyRuntime,__PyEM_EMSCRIPTEN_TRAMPOLINE_OFFSET
     -sEXPORTED_RUNTIME_METHODS=FS,ENV,callMain
+    # Keep wasm function names so stacks (devtools, web/tools/stacks.mjs,
+    # crash logs) are readable. Small size cost; worth it while porting.
+    --profiling-funcs
   )
 else()
 target_link_libraries(ballisticakitbin PRIVATE
