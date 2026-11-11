@@ -11,6 +11,7 @@ select mode: just the teams and free-for-all buttons, leading to the
 playlist browsers' own select mode.
 """
 
+import sys
 from enum import Enum
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Annotated, override, assert_never
@@ -484,7 +485,9 @@ def _open(target: Target, select: bool, context: DocUILocalAction) -> None:
 
             plus = bui.app.plus
             assert plus is not None
-            if plus.accounts.primary is None:
+            # Web builds are offline-only (no accounts), so allow co-op
+            # without one; locked levels/tournaments inside still gate.
+            if plus.accounts.primary is None and sys.platform != 'emscripten':
                 show_sign_in_prompt(origin_widget=context.widget)
                 return
             window.main_window_replace(
