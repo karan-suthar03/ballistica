@@ -84,7 +84,67 @@ def install() -> None:
         return
     _installed = True
     socket.socketpair = _pipe_socketpair  # type: ignore[assignment]
+    _stub_ssl()
     _stub_urllib3_pyodide()
+
+
+def _stub_ssl() -> None:
+    """Provide a minimal 'ssl' module (the wasm CPython has no _ssl).
+
+    Browsers can't do raw TLS sockets anyway, and web builds have no
+    plus/master-server, so we only need the names babase touches at
+    import/setup time. Deliberately partial: libraries such as urllib3
+    do `from ssl import (...)` inside try/except ImportError and so
+    correctly conclude TLS is unavailable.
+    """
+    import sys
+    import types
+
+    try:
+        import ssl  # pylint: disable=unused-import
+
+        return  # Real ssl available; nothing to do.
+    except ImportError:
+        pass
+
+    mod = types.ModuleType('ssl')
+    mod.__doc__ = 'Stand-in ssl module for web builds (no TLS support).'
+
+    class SSLError(OSError):
+        """TLS is unavailable in web builds."""
+
+    class SSLCertVerificationError(SSLError, ValueError):
+        """Never raised; present for isinstance() checks."""
+
+    class SSLContext:
+        """Inert context; any attempt to wrap a socket fails."""
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+
+        def wrap_socket(self, *args: object, **kwargs: object) -> None:
+            raise SSLError('TLS is not available in web builds.')
+
+        def load_verify_locations(self, *args: object, **kw: object) -> None:
+            del args, kw
+
+        def load_default_certs(self, *args: object, **kw: object) -> None:
+            del args, kw
+
+    def create_default_context(*args: object, **kwargs: object) -> SSLContext:
+        del args, kwargs
+        return SSLContext()
+
+    mod.SSLError = SSLError  # type: ignore[attr-defined]
+    mod.SSLCertVerificationError = (  # type: ignore[attr-defined]
+        SSLCertVerificationError
+    )
+    mod.SSLContext = SSLContext  # type: ignore[attr-defined]
+    mod.create_default_context = (  # type: ignore[attr-defined]
+        create_default_context
+    )
+    mod.OPENSSL_VERSION = 'none (web build)'  # type: ignore[attr-defined]
+    sys.modules['ssl'] = mod
 
 
 def _stub_urllib3_pyodide() -> None:
