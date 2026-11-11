@@ -22,6 +22,9 @@ rm -rf "$ROOT" && mkdir -p "$ROOT" "$DIST"
 
 # Game data (deref symlinks: the virtual FS can't follow host links).
 rsync -aL --exclude __pycache__ "$STAGED/ba_data/" "$ROOT/ba_data/"
+# Overlay the Python sources from src so web-only edits/modules
+# (baenv.py, bawebshims.py, ...) apply without a full native asset build.
+rsync -a --exclude __pycache__ src/assets/ba_data/python/ "$ROOT/ba_data/python/"
 
 # Python stdlib, minus things a game never needs.
 rsync -a --exclude __pycache__ \

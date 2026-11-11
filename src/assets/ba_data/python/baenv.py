@@ -25,6 +25,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 import __main__
 
+# Web (emscripten) builds need a few stdlib shims before anything else
+# (asyncio, logging threads, etc.) spins up.
+if sys.platform == 'emscripten':
+    import bawebshims
+
+    bawebshims.install()
+
 if TYPE_CHECKING:
     from typing import Any, Callable
 
