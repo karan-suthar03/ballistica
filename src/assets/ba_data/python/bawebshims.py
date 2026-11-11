@@ -135,16 +135,49 @@ def _stub_ssl() -> None:
         del args, kwargs
         return SSLContext()
 
-    mod.SSLError = SSLError  # type: ignore[attr-defined]
-    mod.SSLCertVerificationError = (  # type: ignore[attr-defined]
-        SSLCertVerificationError
-    )
+    class _Inert:
+        """Placeholder for ssl classes referenced at import time."""
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            raise SSLError('TLS is not available in web builds.')
+
+    # Full exception hierarchy (stdlib modules such as asyncio.sslproto
+    # reference these at import time).
+    errors: dict[str, type] = {
+        'SSLError': SSLError,
+        'SSLCertVerificationError': SSLCertVerificationError,
+        'CertificateError': SSLCertVerificationError,
+    }
+    for ename in (
+        'SSLZeroReturnError',
+        'SSLWantReadError',
+        'SSLWantWriteError',
+        'SSLSyscallError',
+        'SSLEOFError',
+    ):
+        errors[ename] = type(ename, (SSLError,), {'__module__': 'ssl'})
+    for ename, ecls in errors.items():
+        setattr(mod, ename, ecls)
+
+    for cname in ('SSLSocket', 'SSLObject', 'MemoryBIO', 'SSLSession'):
+        setattr(mod, cname, type(cname, (_Inert,), {'__module__': 'ssl'}))
+
     mod.SSLContext = SSLContext  # type: ignore[attr-defined]
     mod.create_default_context = (  # type: ignore[attr-defined]
         create_default_context
     )
+    mod._create_default_https_context = (  # type: ignore[attr-defined]
+        create_default_context
+    )
     mod.OPENSSL_VERSION = 'none (web build)'  # type: ignore[attr-defined]
     sys.modules['ssl'] = mod
+
+    # urllib3 v2 warns at import that our 'ssl' isn't OpenSSL; expected.
+    import warnings
+
+    warnings.filterwarnings(
+        'ignore', message=r'urllib3 v2 only supports OpenSSL'
+    )
 
 
 def _stub_urllib3_pyodide() -> None:
