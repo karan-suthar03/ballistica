@@ -32,6 +32,12 @@ _OFFLINE_MSG = 'Cloud functionality is not available in web builds.'
 
 def on_app_loading() -> None:
     """Called by PlusAppSubsystem.on_app_loading()."""
+    import _babase
+
+    # Native builds always end up with this config key (empty when there
+    # are no saved profiles); the lobby reads it unconditionally when a
+    # player joins, so make sure it exists.
+    _babase.app.config.setdefault('Player Profiles', {})
 
 
 def set_v1_account_client_active(active: bool) -> None:
