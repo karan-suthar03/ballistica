@@ -5,6 +5,7 @@
 
 import io
 import os
+import sys
 import time
 import asyncio
 from enum import Enum
@@ -402,7 +403,16 @@ class App:
         try:
             from baplus import PlusAppSubsystem
 
-            return PlusAppSubsystem()
+            plus = PlusAppSubsystem()
+
+            # Web builds run an offline pure-Python _baplus, which has
+            # no native side to provide cloud/accounts; attach offline
+            # stand-ins for those.
+            if sys.platform == 'emscripten':
+                import bawebplus
+
+                bawebplus.attach(plus)
+            return plus
         except ImportError:
             return None
         except Exception:

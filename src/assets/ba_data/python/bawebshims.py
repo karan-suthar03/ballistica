@@ -86,7 +86,21 @@ def install() -> None:
     socket.socketpair = _pipe_socketpair  # type: ignore[assignment]
     _add_time_fallbacks()
     _stub_ssl()
+    _install_offline_plus()
     _stub_urllib3_pyodide()
+
+
+def _install_offline_plus() -> None:
+    """Make ``import _baplus`` resolve to our offline stand-in.
+
+    Native plus isn't linked into web builds (see bawebplus), so there's
+    no builtin _baplus; register the pure-Python one under that name.
+    """
+    import sys
+
+    import bawebplus
+
+    sys.modules.setdefault('_baplus', bawebplus)
 
 
 def _add_time_fallbacks() -> None:
@@ -97,8 +111,10 @@ def _add_time_fallbacks() -> None:
     """
     import time
 
-    fallback = getattr(time, 'process_time', time.perf_counter)
-    fallback_ns = getattr(time, 'process_time_ns', time.perf_counter_ns)
+    # Emscripten's process_time exists but raises RuntimeError when
+    # called, so use the wall clock.
+    fallback = time.perf_counter
+    fallback_ns = time.perf_counter_ns
     if not hasattr(time, 'thread_time'):
         time.thread_time = fallback  # type: ignore[attr-defined]
     if not hasattr(time, 'thread_time_ns'):

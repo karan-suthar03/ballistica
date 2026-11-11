@@ -39,6 +39,22 @@ rsync -a --exclude __pycache__ \
   "$CPY/Lib/" "$ROOT/pylib/"
 cp "$SYSCFG"/_sysconfigdata_*.py "$SYSCFG"/_sysconfig_vars_*.json "$ROOT/pylib/"
 
+# Full asset packages. Web builds have no plus, so they can't resolve or
+# download packages from the cloud themselves; instead we ship the ones a
+# native (plus-enabled) build already downloaded. With every desired
+# flavor present locally, the asset subsystem takes its offline fast path.
+# Lands at ~/.ballisticakit/cache in the virtual FS (HOME=/home/web_user).
+NATIVE_CACHE="${NATIVE_CACHE:-$HOME/.ballisticakit/cache}"
+if [ -f "$NATIVE_CACHE/manifest.json" ]; then
+  WEBCACHE="$ROOT/home/web_user/.ballisticakit/cache"
+  mkdir -p "$WEBCACHE"
+  cp "$NATIVE_CACHE/manifest.json" "$WEBCACHE/"
+  rsync -a "$NATIVE_CACHE/assets/" "$WEBCACHE/assets/"
+else
+  echo "WARNING: no native asset cache at $NATIVE_CACHE;" \
+    "run the native build once so it downloads assets." >&2
+fi
+
 echo "virtual FS contents:"; du -sh "$ROOT"/*
 
 python3 "$EMSDK/upstream/emscripten/tools/file_packager.py" \
