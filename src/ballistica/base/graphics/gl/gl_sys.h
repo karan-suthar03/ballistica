@@ -58,6 +58,14 @@
 // clang-format on
 #endif
 
+#if BA_PLATFORM_WEB
+// WebGL2 via emscripten's GL ES 3.0 layer.
+// clang-format off
+#include <GLES3/gl3.h>
+#include <GLES2/gl2ext.h>
+// clang-format on
+#endif
+
 // On Windows with ANGLE we include GLES3 headers here (via gl_sys_windows.h)
 // so that glDepthRangef and other ES functions are visible before we define
 // any inline wrappers below.

@@ -1157,9 +1157,9 @@ void Platform::SetCurrentThreadName(const std::string& name) {
 
 #if BA_PLATFORM_MACOS || BA_PLATFORM_IOS_TVOS
   pthread_setname_np(name.c_str());
-#elif BA_PLATFORM_LINUX || BA_PLATFORM_ANDROID
+#elif (BA_PLATFORM_LINUX && !BA_PLATFORM_WEB) || BA_PLATFORM_ANDROID
   pthread_setname_np(pthread_self(), name.c_str());
-#endif
+#endif  // (no thread naming on web)
 }
 
 void Platform::Unlink(const char* path) {

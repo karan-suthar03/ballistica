@@ -8,6 +8,15 @@
 #include <al.h>   // IWYU pragma: export
 #include <alc.h>  // IWYU pragma: export
 
+// Emscripten's (WebAudio-backed) OpenAL headers don't define these
+// OpenAL-Soft calling-convention macros.
+#ifndef AL_APIENTRY
+#define AL_APIENTRY
+#endif
+#ifndef ALC_APIENTRY
+#define ALC_APIENTRY
+#endif
+
 #include <string>
 
 #define CHECK_AL_ERROR _check_al_error(__FILE__, __LINE__)

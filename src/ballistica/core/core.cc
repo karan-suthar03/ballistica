@@ -497,7 +497,8 @@ auto CoreFeatureSet::CurrentThreadName() -> std::string {
 
   // Ask pthread for the thread name if we don't have one.
   // FIXME - move this to platform.
-#if BA_PLATFORM_MACOS || BA_PLATFORM_IOS_TVOS || BA_PLATFORM_LINUX
+#if BA_PLATFORM_MACOS || BA_PLATFORM_IOS_TVOS \
+    || (BA_PLATFORM_LINUX && !BA_PLATFORM_WEB)
   std::string name = "unknown (sys-name=";
   char buffer[256];
   int result = pthread_getname_np(pthread_self(), buffer, sizeof(buffer));
