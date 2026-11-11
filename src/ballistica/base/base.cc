@@ -770,6 +770,66 @@ void BaseFeatureSet::StopEventLoopThreads_() {
           + "ms.");
 }
 
+#if BA_PLATFORM_WEB
+/// Offline stand-in for the closed-source plus feature-set on web builds
+/// (plus ships only as precompiled native libs, so it can't be linked into
+/// wasm). Native counterpart of ba_data/python/bawebplus.py: behaves like
+/// a permanently offline client with nobody signed in -- no accounts,
+/// cloud, analytics, purchases or ads. Local play and joining servers by
+/// address don't need any of that.
+class WebOfflinePlus : public PlusSoftInterface {
+ public:
+  void OnAppStart() override {}
+  void OnAppSuspend() override {}
+  void OnAppUnsuspend() override {}
+  void OnAppShutdown() override {}
+  void OnAppShutdownComplete() override {}
+  void ApplyAppConfig() override {}
+  void OnScreenSizeChange() override {}
+  void StepDisplayTime() override {}
+  auto IsUnmodifiedBlessedBuild() -> bool override { return false; }
+  auto HasBlessingHash() -> bool override { return false; }
+  void AAT() override {}
+  void AATE() override {}
+  auto GAHU() -> std::optional<std::string> override { return {}; }
+  void V1LoginDidChange() override {}
+  void SetAdCompletionCall(PyObject* obj, bool pass_actually_showed) override {
+  }
+  void PushAdViewComplete(const std::string& purpose,
+                          bool actually_showed) override {}
+  void PushPublicPartyState() override {}
+  void DispatchRemoteAchievementList(
+      const std::set<std::string>& achs) override {}
+  void SetProductPrice(const std::string& product,
+                       const std::string& price) override {}
+  void PushAnalyticsCall(const std::string& type, int increment) override {}
+  void PushPurchaseTransactionCall(const std::string& item,
+                                   const std::string& receipt,
+                                   const std::string& signature,
+                                   const std::string& order_id,
+                                   bool user_initiated) override {}
+  auto GetAccountID() -> std::string override { return ""; }
+  void ClientInfoQuery(const std::string& val1, const std::string& val2,
+                       const std::string& val3, int build_number) override {}
+  auto CalcV1PeerHash(const std::string& peer_hash_input)
+      -> std::string override {
+    return "";
+  }
+  void V1SetClientInfo(JsonObjBuilder* dict) override {}
+  void DoPushSubmitAnalyticsCountsCall(const std::string& sval) override {}
+  void SetHaveIncentivizedAd(bool val) override {}
+  auto HaveIncentivizedAd() -> bool override { return false; }
+};
+
+/// Use the offline stand-in when no real plus registered itself.
+static void EnsureWebOfflinePlus_(PlusSoftInterface** plus_soft) {
+  if (*plus_soft == nullptr) {
+    static WebOfflinePlus offline_plus;
+    *plus_soft = &offline_plus;
+  }
+}
+#endif  // BA_PLATFORM_WEB
+
 auto BaseFeatureSet::HavePlus() -> bool {
   if (!plus_soft_ && !tried_importing_plus_) {
     python->SoftImportPlus();
@@ -778,6 +838,9 @@ auto BaseFeatureSet::HavePlus() -> bool {
     // attempts shouldn't hurt anything.
     tried_importing_plus_ = true;
   }
+#if BA_PLATFORM_WEB
+  EnsureWebOfflinePlus_(&plus_soft_);
+#endif
   return plus_soft_ != nullptr;
 }
 
@@ -795,6 +858,9 @@ auto BaseFeatureSet::Plus() -> PlusSoftInterface* {
     // attempts shouldn't hurt anything.
     tried_importing_plus_ = true;
   }
+#if BA_PLATFORM_WEB
+  EnsureWebOfflinePlus_(&plus_soft_);
+#endif
   if (!plus_soft_) {
     throw Exception("plus feature-set not present.");
   }

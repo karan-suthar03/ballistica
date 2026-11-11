@@ -370,4 +370,11 @@ def _make_accounts() -> Any:
         def set_primary_credentials(self, credentials: str | None) -> None:
             del credentials
 
+        def on_app_loading(self) -> None:
+            super().on_app_loading()
+            # Native plus reports this once it knows there's no stored
+            # account; the app waits for it (or a sign-in) before
+            # leaving its launch fade. Offline, there never is one.
+            _push(self.on_no_initial_primary_account)
+
     return OfflineAccountV2Subsystem()
