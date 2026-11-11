@@ -76,6 +76,17 @@ target_include_directories(common_deps INTERFACE
 if(PORTABLE)
   target_link_libraries(common_deps INTERFACE
     "${_BA_PORTABLE_LIBDIR}/libzstd.a")
+elseif(EMSCRIPTEN)
+  # No emscripten port for zstd; compile it from source (decoder+encoder).
+  set(BA_WEB_ZSTD_SRC "" CACHE PATH "zstd source tree (has lib/)")
+  file(GLOB _BA_ZSTD_SOURCES
+    "${BA_WEB_ZSTD_SRC}/lib/common/*.c"
+    "${BA_WEB_ZSTD_SRC}/lib/compress/*.c"
+    "${BA_WEB_ZSTD_SRC}/lib/decompress/*.c")
+  add_library(ba_zstd STATIC ${_BA_ZSTD_SOURCES})
+  target_compile_definitions(ba_zstd PRIVATE ZSTD_DISABLE_ASM=1)
+  target_compile_options(ba_zstd PRIVATE -pthread)
+  target_link_libraries(common_deps INTERFACE ba_zstd)
 else()
   pkg_check_modules(ZSTD REQUIRED IMPORTED_TARGET libzstd)
   target_link_libraries(common_deps INTERFACE PkgConfig::ZSTD)
@@ -121,6 +132,24 @@ if(PORTABLE)
     "${_BA_PORTABLE_LIBDIR}/libzstd.a"
     m dl pthread util)
   target_compile_definitions(common_deps INTERFACE BA_CONTAINS_PYTHON_DIST=1)
+elseif(EMSCRIPTEN)
+  # CPython built for wasm32-emscripten with pthreads
+  # (see web/build_cpython_wasm.sh). Stdlib ships next to ba_data.
+  set(BA_WEB_CPYTHON "" CACHE PATH "cpython checkout with cross-build/")
+  set(_BA_PYB "${BA_WEB_CPYTHON}/cross-build/wasm32-emscripten/build/python")
+  set(_BA_PYP "${BA_WEB_CPYTHON}/cross-build/wasm32-emscripten/prefix")
+  file(GLOB _BA_HACL_OBJS "${_BA_PYB}/Modules/_hacl/*.o")
+  add_library(Python3::Python INTERFACE IMPORTED)
+  target_include_directories(Python3::Python INTERFACE
+    "${BA_WEB_CPYTHON}/Include" "${_BA_PYB}")
+  target_link_libraries(Python3::Python INTERFACE
+    "${_BA_PYB}/libpython3.14.a"
+    ${_BA_HACL_OBJS}
+    "${_BA_PYB}/Modules/expat/libexpat.a"
+    "${_BA_PYP}/lib/libmpdec.a"
+    "${_BA_PYP}/lib/libffi.a")
+  target_link_options(Python3::Python INTERFACE -sUSE_ZLIB=1 -sUSE_BZIP2=1)
+  target_compile_definitions(common_deps INTERFACE BA_CONTAINS_PYTHON_DIST=1)
 else()
   set(Python3_FIND_FRAMEWORK NEVER)
   # TODO: Look into using Development.Module/Development.Embed here.
@@ -129,6 +158,16 @@ endif()
 
 if(HEADLESS)
   target_compile_definitions(common_deps INTERFACE BA_HEADLESS_BUILD=1)
+elseif(EMSCRIPTEN)
+  # Web: everything comes from emscripten's built-in libs/ports.
+  # GL ES 3 maps onto WebGL2. The engine includes <al.h> directly.
+  target_compile_definitions(common_deps INTERFACE BA_OPENGL_IS_ES=1)
+  target_include_directories(ba_deps INTERFACE
+    "${EMSCRIPTEN_SYSROOT}/include/AL")
+  set(_BA_WEB_PORTS -sUSE_SDL=3 -sUSE_OGG=1 -sUSE_VORBIS=1)
+  target_compile_options(ba_deps INTERFACE ${_BA_WEB_PORTS})
+  target_link_options(ba_deps INTERFACE ${_BA_WEB_PORTS} -lopenal
+    -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
 else()
   if(PORTABLE)
     # (The engine includes <al.h> directly, as OpenAL's pkg-config sets
@@ -285,6 +324,11 @@ target_compile_options(common_deps INTERFACE
 target_compile_options(common_deps INTERFACE
   $<$<CXX_COMPILER_ID:GNU>:-Wno-psabi>
 )
+
+# Web builds use shared-memory threads everywhere (incl. ODE + zstd).
+if(EMSCRIPTEN)
+  target_compile_options(common_deps INTERFACE -pthread)
+endif()
 
 set(ODE_SRC_ROOT ${BA_SRC_ROOT}/external/open_dynamics_engine-ef)
 
@@ -1238,9 +1282,30 @@ target_include_directories(ballisticakitbin PRIVATE
   ${EXTRA_INCLUDE_DIRS}
 )
 
+if(EMSCRIPTEN)
+  # No plus (closed source, no wasm build). Runs the engine's main() on a
+  # pthread so it may block; GL calls get proxied to the browser thread.
+  target_link_libraries(ballisticakitbin PRIVATE
+    ode common_deps ba_deps Python3::Python)
+  set_target_properties(ballisticakitbin PROPERTIES SUFFIX ".js")
+  target_link_options(ballisticakitbin PRIVATE
+    -pthread
+    -sPROXY_TO_PTHREAD=1
+    -sOFFSCREEN_FRAMEBUFFER=1
+    -sALLOW_MEMORY_GROWTH=1
+    -sINITIAL_MEMORY=256MB
+    -sSTACK_SIZE=5MB
+    -sPTHREAD_POOL_SIZE=16
+    -sWASM_BIGINT=1
+    -sFORCE_FILESYSTEM=1
+    -sEXPORTED_FUNCTIONS=_main,__PyRuntime,__PyEM_EMSCRIPTEN_TRAMPOLINE_OFFSET
+    -sEXPORTED_RUNTIME_METHODS=FS,ENV,callMain
+  )
+else()
 target_link_libraries(ballisticakitbin PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/prefablib/libballisticaplus.a ode pthread dl common_deps ba_deps Python3::Python
 )
+endif()
 
 
 # BallisticaKit modular shared library

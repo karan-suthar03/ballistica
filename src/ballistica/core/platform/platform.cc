@@ -368,7 +368,7 @@ auto Platform::GetErrnoString() -> std::string {
 // This default implementation covers non-windows platforms.
 #if BA_PLATFORM_WINDOWS
   throw Exception();
-#elif BA_PLATFORM_LINUX
+#elif BA_PLATFORM_LINUX && !BA_PLATFORM_WEB
   // We seem to be getting a gnu-specific version on linux
   // which returns a char pointer that doesn't always point
   // to the provided buffer.  Sounds like there's a way to

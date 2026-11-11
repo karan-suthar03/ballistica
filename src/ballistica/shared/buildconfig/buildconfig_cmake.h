@@ -39,6 +39,15 @@
 #error Unknown processor architecture.
 #endif
 
+#elif __EMSCRIPTEN__
+
+// Web (WebAssembly) build. Emscripten provides a mostly-POSIX environment,
+// so we reuse the Linux platform code and special-case with BA_PLATFORM_WEB.
+#define BA_PLATFORM "linux"
+#define BA_PLATFORM_LINUX 1
+#define BA_PLATFORM_WEB 1
+#define BA_ARCH "wasm32"
+
 #elif __linux__
 
 #define BA_PLATFORM "linux"
@@ -72,11 +81,13 @@
 #define BA_MINSDL_BUILD 1
 #endif
 
+#if !BA_PLATFORM_WEB
 // Yup we've got that.
 #define BA_ENABLE_EXECINFO_BACKTRACES 1
 
 // Allow stdin commands too.
 #define BA_ENABLE_STDIO_CONSOLE 1
+#endif
 
 #ifndef BA_DEFINE_MAIN
 #define BA_DEFINE_MAIN 1
