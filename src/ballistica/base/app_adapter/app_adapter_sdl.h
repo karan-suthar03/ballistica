@@ -98,6 +98,8 @@ class AppAdapterSDL : public AppAdapter {
                           int index);
   void RemoveSDLInputDevice_(int index);
   void SleepUntilNextEventCycle_(microsecs_t cycle_start_time);
+  /// One pass of the main-thread loop: pump SDL events, then render.
+  void RunMainThreadEventLoopCycle_();
   void LogEventProcessingTime_(microsecs_t duration, int count);
   // Build our custom color cursor from the engine's bundled cursor
   // texture (hardware-cursor mode). Returns nullptr on failure (the

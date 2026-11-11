@@ -84,8 +84,25 @@ def install() -> None:
         return
     _installed = True
     socket.socketpair = _pipe_socketpair  # type: ignore[assignment]
+    _add_time_fallbacks()
     _stub_ssl()
     _stub_urllib3_pyodide()
+
+
+def _add_time_fallbacks() -> None:
+    """Emscripten's time module lacks per-thread CPU clocks.
+
+    The engine only uses them for timing diagnostics, so fall back to
+    the process-wide (or wall) clock.
+    """
+    import time
+
+    fallback = getattr(time, 'process_time', time.perf_counter)
+    fallback_ns = getattr(time, 'process_time_ns', time.perf_counter_ns)
+    if not hasattr(time, 'thread_time'):
+        time.thread_time = fallback  # type: ignore[attr-defined]
+    if not hasattr(time, 'thread_time_ns'):
+        time.thread_time_ns = fallback_ns  # type: ignore[attr-defined]
 
 
 def _stub_ssl() -> None:

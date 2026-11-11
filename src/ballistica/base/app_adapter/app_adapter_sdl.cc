@@ -4,6 +4,10 @@
 
 #include "ballistica/base/app_adapter/app_adapter_sdl.h"
 
+#if BA_PLATFORM_WEB
+#include <emscripten/emscripten.h>
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -414,28 +418,50 @@ void AppAdapterSDL::ApplyGraphicsSettings(
 void AppAdapterSDL::RunMainThreadEventLoopToCompletion() {
   assert(g_core->InMainThread());
 
+#if BA_PLATFORM_WEB
+  // Browsers can't block their main thread, so instead of looping here we
+  // hand one cycle at a time to requestAnimationFrame (fps=0), which also
+  // gives us vsync pacing for free. simulate_infinite_loop=true means this
+  // call never returns; main()'s stack is left intact.
+  emscripten_set_main_loop_arg(
+      [](void* arg) {
+        auto* self = static_cast<AppAdapterSDL*>(arg);
+        if (self->done_) {
+          emscripten_cancel_main_loop();
+          return;
+        }
+        self->RunMainThreadEventLoopCycle_();
+      },
+      this, 0, true);
+#else
   while (!done_) {
     auto cycle_start_time{g_core->AppTimeMicrosecs()};
-
-    // Events.
-    SDL_Event event;
-    int event_count{};
-    while (SDL_PollEvent(&event) && (!done_)) {
-      HandleSDLEvent_(event);
-      event_count++;
-    }
-
-    // Draw.
-    auto draw_start_time{g_core->AppTimeMicrosecs()};
-    LogEventProcessingTime_(draw_start_time - cycle_start_time, event_count);
-    if (!WindowIsInvisible_() && TryRender()) {
-      SwapBuffers_();
-    }
+    RunMainThreadEventLoopCycle_();
 
     // Sleep.
     SleepUntilNextEventCycle_(cycle_start_time);
 
     // Repeat.
+  }
+#endif
+}
+
+void AppAdapterSDL::RunMainThreadEventLoopCycle_() {
+  auto cycle_start_time{g_core->AppTimeMicrosecs()};
+
+  // Events.
+  SDL_Event event;
+  int event_count{};
+  while (SDL_PollEvent(&event) && (!done_)) {
+    HandleSDLEvent_(event);
+    event_count++;
+  }
+
+  // Draw.
+  auto draw_start_time{g_core->AppTimeMicrosecs()};
+  LogEventProcessingTime_(draw_start_time - cycle_start_time, event_count);
+  if (!WindowIsInvisible_() && TryRender()) {
+    SwapBuffers_();
   }
 }
 

@@ -1283,15 +1283,15 @@ target_include_directories(ballisticakitbin PRIVATE
 )
 
 if(EMSCRIPTEN)
-  # No plus (closed source, no wasm build). Runs the engine's main() on a
-  # pthread so it may block; GL calls get proxied to the browser thread.
+  # No plus (closed source, no wasm build). The engine's main thread IS
+  # the browser main thread (SDL + WebGL live there); its loop is driven
+  # by emscripten_set_main_loop. Logic/audio/asset threads are real
+  # pthreads, pre-spawned since the main thread can't wait on new workers.
   target_link_libraries(ballisticakitbin PRIVATE
     ode common_deps ba_deps Python3::Python)
   set_target_properties(ballisticakitbin PROPERTIES SUFFIX ".js")
   target_link_options(ballisticakitbin PRIVATE
     -pthread
-    -sPROXY_TO_PTHREAD=1
-    -sOFFSCREEN_FRAMEBUFFER=1
     -sALLOW_MEMORY_GROWTH=1
     -sINITIAL_MEMORY=256MB
     -sSTACK_SIZE=5MB
