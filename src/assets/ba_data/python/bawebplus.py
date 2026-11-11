@@ -257,7 +257,9 @@ def _push(call: Callable, *args: Any) -> None:
     """Run a callback on the logic thread later (never synchronously)."""
     import _babase
 
-    _babase.pushcall(lambda: call(*args), from_other_thread=True)
+    _babase.pushcall(
+        lambda: call(*args), from_other_thread=not _babase.in_logic_thread()
+    )
 
 
 # ---------------------------------------------------------------------------
