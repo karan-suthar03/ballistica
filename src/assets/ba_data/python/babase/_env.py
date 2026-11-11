@@ -273,6 +273,13 @@ def _warm_start_bootstrap_connection(pool: urllib3.PoolManager) -> None:
     from babase._logging import netlog
     import _babase
 
+    # Web builds have no TLS and no cloud; worse, emscripten runs socket
+    # syscalls on the browser main thread, so a thread spinning on a
+    # connect that can never complete starves rendering. Skip it.
+    if sys.platform == 'emscripten':
+        netlog.debug('Skipping urllib3 warm start on web.')
+        return
+
     url = 'https://regional.ballistica.net/ping'
     starttime = time.monotonic()
     try:

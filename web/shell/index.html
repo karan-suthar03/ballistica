@@ -49,6 +49,14 @@
     setStatus: t => { status.textContent = t; if (t) log('out', `status: ${t}`); },
     onAbort: what => log('err', `ABORT: ${what}`),
     onRuntimeInitialized: () => { status.textContent = ''; log('out', 'runtime initialized'); },
+    // ?log=ba=DEBUG,ba.assetmanager=DEBUG -> BA_LOG_LEVELS for the engine.
+    preRun: [() => {
+      const levels = new URLSearchParams(location.search).get('log');
+      if (levels) {
+        Module.ENV.BA_LOG_LEVELS = levels;
+        log('out', `BA_LOG_LEVELS=${levels}`);
+      }
+    }],
   };
 </script>
 <script src="ballisticakit.data.js"></script>

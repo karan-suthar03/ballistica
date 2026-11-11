@@ -325,9 +325,12 @@ target_compile_options(common_deps INTERFACE
   $<$<CXX_COMPILER_ID:GNU>:-Wno-psabi>
 )
 
-# Web builds use shared-memory threads everywhere (incl. ODE + zstd).
+# Web builds use shared-memory threads everywhere (incl. ODE + zstd), and
+# real C++ exceptions: the engine throws/catches routinely, and
+# emscripten's default (exceptions disabled) turns every throw into an
+# uncatchable abort. Native wasm EH is supported by Safari 15.2+/Chrome.
 if(EMSCRIPTEN)
-  target_compile_options(common_deps INTERFACE -pthread)
+  target_compile_options(common_deps INTERFACE -pthread -fwasm-exceptions)
 endif()
 
 set(ODE_SRC_ROOT ${BA_SRC_ROOT}/external/open_dynamics_engine-ef)
@@ -1292,6 +1295,7 @@ if(EMSCRIPTEN)
   set_target_properties(ballisticakitbin PROPERTIES SUFFIX ".js")
   target_link_options(ballisticakitbin PRIVATE
     -pthread
+    -fwasm-exceptions
     -sALLOW_MEMORY_GROWTH=1
     -sINITIAL_MEMORY=256MB
     -sSTACK_SIZE=5MB
