@@ -22,7 +22,25 @@
     settleTimers.forEach(clearTimeout);
     settleTimers = [50, 200, 500, 1000].map((ms) =>
       setTimeout(() => dispatchEvent(new Event('resize')), ms));
+    settleTimers.push(setTimeout(reportScreen, 1200));
   };
+  // Temporary diagnostic: viewport vs canvas sizes, sent to the gateway log.
+  const reportScreen = () => {
+    const c = document.getElementById('canvas');
+    if (!c || typeof log !== 'function') return;
+    const r = c.getBoundingClientRect();
+    const cs = getComputedStyle(c);
+    const vv = window.visualViewport;
+    log('out', 'WARNING screen: ' + JSON.stringify({
+      fs: !!document.fullscreenElement, dpr: devicePixelRatio,
+      inner: [innerWidth, innerHeight], screen: [screen.width, screen.height],
+      vv: vv && [vv.width, vv.height, vv.offsetLeft, vv.offsetTop],
+      rect: [r.left, r.top, r.width, r.height], px: [c.width, c.height],
+      css: [cs.left, cs.top, cs.width, cs.height],
+      orient: screen.orientation?.type,
+    }));
+  };
+  setTimeout(reportScreen, 3000);
   document.addEventListener('fullscreenchange', settle);
   addEventListener('orientationchange', settle);
   screen.orientation?.addEventListener?.('change', settle);
