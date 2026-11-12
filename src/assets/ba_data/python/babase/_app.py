@@ -112,6 +112,12 @@ class App:
 
         #: Config values for the app.
         self.config: AppConfig = AppConfig(_babase.get_initial_app_config())
+        # Web: phones report no safe-area insets, so the auto amount (0 at
+        # small ui-scale) puts UI right at rounded corners. Default to a
+        # small custom inset there; the Graphics setting still overrides.
+        if sys.platform == 'emscripten' and 'Screen Insets' not in self.config:
+            self.config['Screen Insets'] = 'Custom'
+            self.config['Custom Screen Insets'] = 0.2
         _babase.set_app_config(self.config)
 
         #: Static environment values for the app.
