@@ -23,6 +23,7 @@
 #include "ballistica/scene_v1/assets/scene_texture.h"
 #include "ballistica/scene_v1/connection/connection_set.h"
 #include "ballistica/scene_v1/connection/connection_to_client.h"
+#include "ballistica/scene_v1/connection/connection_to_client_udp.h"
 #include "ballistica/scene_v1/dynamics/collision.h"
 #include "ballistica/scene_v1/dynamics/dynamics.h"
 #include "ballistica/scene_v1/node/node.h"
@@ -1590,6 +1591,7 @@ static auto PyGetGameRoster(PyObject* self, PyObject* args, PyObject* keywds)
 
     // Let's also include a public account-id if we have one.
     std::string account_id;
+    std::string address;
     if (clientid == -1) {
       account_id = g_base->Plus()->GetAccountID();
     } else {
@@ -1598,6 +1600,12 @@ static auto PyGetGameRoster(PyObject* self, PyObject* args, PyObject* keywds)
             appmode->connections()->connections_to_clients().find(clientid);
         if (client2 != appmode->connections()->connections_to_clients().end()) {
           account_id = client2->second->peer_public_account_id();
+          // Network address ("ip:port") for server-side stats.
+          if (auto* udp = dynamic_cast<ConnectionToClientUDP*>(
+                  client2->second.get())) {
+            auto a = udp->addr();
+            address = a.AddressString() + ":" + std::to_string(a.Port());
+          }
         }
       }
     }
@@ -1618,13 +1626,14 @@ static auto PyGetGameRoster(PyObject* self, PyObject* args, PyObject* keywds)
     }
 
     auto py_client{PythonRef::Stolen(Py_BuildValue(
-        "{sssssOsOsOsO}", "display_string",
+        "{sssssOsOsOsOss}", "display_string",
         client.spec.empty()
             ? ""
             : PlayerSpec(client.spec).GetDisplayString().c_str(),
         "spec_string", client.spec.c_str(), "players", py_player_list.get(),
         "client_id", client_id_ref.get(), "account_id", account_id_ref.get(),
-        "account_name_depiction", depiction_ref.get()))};
+        "account_name_depiction", depiction_ref.get(), "address",
+        address.c_str()))};
 
     PyList_Append(py_client_list.get(), py_client.get());
   }
