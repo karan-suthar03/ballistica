@@ -13,6 +13,21 @@
     || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
   const root = document.documentElement;
 
+  // SDL reads the canvas size once per window 'resize'. Android fires that
+  // mid-transition (fullscreen, rotation, bars hiding), before layout
+  // settles, so the engine kept a stale size: UI off-screen, touches off.
+  // Re-send 'resize' a few times after any viewport change.
+  let settleTimers = [];
+  const settle = () => {
+    settleTimers.forEach(clearTimeout);
+    settleTimers = [50, 200, 500, 1000].map((ms) =>
+      setTimeout(() => dispatchEvent(new Event('resize')), ms));
+  };
+  document.addEventListener('fullscreenchange', settle);
+  addEventListener('orientationchange', settle);
+  screen.orientation?.addEventListener?.('change', settle);
+  window.visualViewport?.addEventListener('resize', settle);
+
   // Automatic fullscreen on the first tap/click: on for the deployed
   // site, off for local previews (localhost).
   // Phones/tablets only (touch as the main pointer); never on desktop.
