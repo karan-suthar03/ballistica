@@ -52,8 +52,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def _pick(self, path: str):
         """Return (file to send, content-encoding or None)."""
         accepted = self.headers.get('Accept-Encoding', '')
+        src_mtime = os.stat(path).st_mtime_ns
         for name, suffix in ENCODINGS:
-            if name in accepted and os.path.isfile(path + suffix):
+            # A sibling older than its source is stale (compress.sh still
+            # running); never serve it.
+            if (
+                name in accepted
+                and os.path.isfile(path + suffix)
+                and os.stat(path + suffix).st_mtime_ns >= src_mtime
+            ):
                 return path + suffix, name
         return path, None
 
