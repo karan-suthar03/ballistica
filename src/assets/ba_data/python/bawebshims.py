@@ -5,7 +5,6 @@
 Imported by baenv before anything else on sys.platform == 'emscripten'.
 """
 
-from __future__ import annotations
 
 import os
 import socket

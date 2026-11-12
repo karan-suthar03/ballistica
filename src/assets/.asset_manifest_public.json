@@ -524,6 +524,8 @@
  "ba_data/python/bauiv1lib/utils.py",
  "ba_data/python/bauiv1lib/v2upgrade.py",
  "ba_data/python/bauiv1lib/watch.py",
+ "ba_data/python/bawebplus.py",
+ "ba_data/python/bawebshims.py",
  "ba_data/python/efro/__init__.py",
  "ba_data/python/efro/call.py",
  "ba_data/python/efro/cloudshell.py",

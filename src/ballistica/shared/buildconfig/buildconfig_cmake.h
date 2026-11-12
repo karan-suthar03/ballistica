@@ -71,6 +71,17 @@
 
 #define dTRIMESH_ENABLED 1
 
+// Builds without the closed-source plus feature-set: web (no wasm build of
+// it exists) and native builds configured with the NO_PLUS cmake option
+// (self-hosted servers). They run offline stand-ins instead (OfflinePlus in
+// base.cc, ba_data/python/bawebplus.py).
+#if BA_PLATFORM_WEB && !defined(BA_NO_PLUS)
+#define BA_NO_PLUS 1
+#endif
+#ifndef BA_NO_PLUS
+#define BA_NO_PLUS 0
+#endif
+
 #if !BA_HEADLESS_BUILD
 #define BA_ENABLE_AUDIO 1
 

@@ -8,6 +8,7 @@
 
 #include "ballistica/base/app_adapter/app_adapter.h"
 #include "ballistica/base/networking/network_reader.h"
+#include "ballistica/base/networking/web_udp.h"
 #include "ballistica/base/support/app_config.h"
 #include "ballistica/core/core.h"
 #include "ballistica/core/logging/logging.h"
@@ -76,6 +77,12 @@ void Networking::SendTo(const std::vector<uint8_t>& buffer,
   // otherwise.
   int sd = addr.IsV6() ? g_base->network_reader->sd6()
                        : g_base->network_reader->sd4();
+#if BA_PLATFORM_WEB
+  if (sd == kWebUdpSocket) {
+    WebUdpSendTo(buffer.data(), buffer.size(), addr.AsSockAddr());
+    return;
+  }
+#endif
   if (sd != -1) {
     sendto(sd, (const char*)&buffer[0],
            static_cast_check_fit<socket_send_length_t>(buffer.size()), 0,

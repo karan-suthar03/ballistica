@@ -88,10 +88,11 @@ def gen_monolithic_register_modules() -> None:
 
     def register_line(mname: str) -> str:
         line = f'PyImport_AppendInittab("{mname}", &{initname(mname)});'
-        # Web builds can't link plus (closed source, no wasm lib); the
-        # engine soft-imports _baplus and copes with it being absent.
+        # Builds without plus (web: closed source, no wasm lib; NO_PLUS
+        # servers) don't link it; the engine soft-imports _baplus and
+        # copes with it being absent.
         if mname == '_baplus':
-            return f'#if !BA_PLATFORM_WEB\n{line}\n#endif'
+            return f'#if !BA_NO_PLUS\n{line}\n#endif'
         return line
 
     py_register_code = '\n'.join(register_line(n) for n in pymodulenames)
@@ -99,7 +100,7 @@ def gen_monolithic_register_modules() -> None:
     if '_baplus' in pymodulenames:
         init_plus_code = (
             '\n'
-            '#if !BA_PLATFORM_WEB\n'
+            '#if !BA_NO_PLUS\n'
             '// Slight hack: because we are currently building baplus as a'
             ' static module\n'
             '// and linking it in, symbols exported there (namely'
@@ -118,7 +119,7 @@ def gen_monolithic_register_modules() -> None:
             'extern "C" auto PyInit__baplus() -> PyObject* {\n'
             '  return DoPyInit__baplus();\n'
             '}\n'
-            '#endif  // !BA_PLATFORM_WEB\n'
+            '#endif  // !BA_NO_PLUS\n'
         )
     else:
         init_plus_code = ''

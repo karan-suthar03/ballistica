@@ -13,6 +13,7 @@
 #include "ballistica/base/logic/logic.h"
 #include "ballistica/base/networking/nearby_services.h"
 #include "ballistica/base/networking/network_writer.h"
+#include "ballistica/base/networking/web_udp.h"
 #include "ballistica/core/logging/logging.h"
 #include "ballistica/core/logging/logging_macros.h"
 #include "ballistica/core/platform/platform.h"
@@ -24,6 +25,40 @@
 namespace ballistica::base {
 
 NetworkReader::NetworkReader() = default;
+
+// Socket helpers: on web, the IPv4 game socket is the WebRTC-backed
+// stand-in (see web_udp.h); everything else is a real socket.
+static void CloseSd_(int sd) {
+#if BA_PLATFORM_WEB
+  if (sd == kWebUdpSocket) {
+    WebUdpClose();
+    return;
+  }
+#endif
+  g_core->platform->CloseSocket(sd);
+}
+
+static auto RecvFromSd_(int sd, char* buf, size_t len, sockaddr* from,
+                        socklen_t* from_len) -> ssize_t {
+#if BA_PLATFORM_WEB
+  if (sd == kWebUdpSocket) {
+    return WebUdpRecvFrom(buf, len, from, from_len);
+  }
+#endif
+  return recvfrom(sd, buf, len, 0, from, from_len);
+}
+
+static void SendToSd_(int sd, const char* buf, size_t len, const sockaddr* to,
+                      socklen_t to_len) {
+#if BA_PLATFORM_WEB
+  if (sd == kWebUdpSocket) {
+    WebUdpSendTo(buf, len, to);
+    return;
+  }
+#endif
+  sendto(sd, buf, static_cast_check_fit<socket_send_length_t>(len), 0, to,
+         to_len);
+}
 
 auto NetworkReader::ShouldAnswerGameQuery_() -> bool {
   // Game queries arrive from anyone who can reach our port, and each one
@@ -166,16 +201,23 @@ void NetworkReader::CloseSockets_() {
   // This needs to be locked during any sd changes/writes.
   std::scoped_lock lock(sd_mutex_);
   if (sd4_ != -1) {
-    g_core->platform->CloseSocket(sd4_);
+    CloseSd_(sd4_);
     sd4_ = -1;
   }
   if (sd6_ != -1) {
-    g_core->platform->CloseSocket(sd6_);
+    CloseSd_(sd6_);
     sd6_ = -1;
   }
 }
 
 void NetworkReader::PokeSelf_() {
+#if BA_PLATFORM_WEB
+  if (sd4_ == kWebUdpSocket) {
+    char b[1] = {BA_PACKET_POKE};
+    WebUdpPushLocal(b, 1);
+    return;
+  }
+#endif
   int sd = socket(AF_INET, SOCK_DGRAM, 0);
   if (sd < 0) {
     g_core->logging->Log(LogName::kBaNetworking, LogLevel::kError,
@@ -214,6 +256,13 @@ void NetworkReader::PokeSelf_() {
 }
 
 void NetworkReader::DoPoll_(bool* can_read_4, bool* can_read_6) {
+#if BA_PLATFORM_WEB
+  if (sd4_ == kWebUdpSocket) {
+    *can_read_4 = WebUdpWaitReadable();
+    *can_read_6 = false;
+    return;
+  }
+#endif
   struct pollfd fds[2]{};
   int i{};
   int index_4{-1};
@@ -376,8 +425,8 @@ auto NetworkReader::RunThread_() -> int {
           continue;
         }
         ssize_t rresult =
-            recvfrom(sd, buffer, sizeof(buffer), 0,
-                     reinterpret_cast<sockaddr*>(&from), &from_size);
+            RecvFromSd_(sd, buffer, sizeof(buffer),
+                        reinterpret_cast<sockaddr*>(&from), &from_size);
         if (rresult == 0) {
           // Note: have gotten reports of server attacks with this log
           // message repeating. So now only logging this once to eliminate
@@ -408,11 +457,11 @@ auto NetworkReader::RunThread_() -> int {
 
           // If either of our sockets goes down lets close *both* of them.
           if (sd4_ != -1) {
-            g_core->platform->CloseSocket(sd4_);
+            CloseSd_(sd4_);
             sd4_ = -1;
           }
           if (sd6_ != -1) {
-            g_core->platform->CloseSocket(sd6_);
+            CloseSd_(sd6_);
             sd6_ = -1;
           }
         } else {
@@ -449,8 +498,8 @@ auto NetworkReader::RunThread_() -> int {
               // This needs to be locked during any sd changes/writes.
               std::scoped_lock lock(sd_mutex_);
               char msg[1] = {BA_PACKET_SIMPLE_PONG};
-              sendto(sd, msg, 1, 0, reinterpret_cast<sockaddr*>(&from),
-                     from_size);
+              SendToSd_(sd, msg, 1, reinterpret_cast<sockaddr*>(&from),
+                        from_size);
               break;
             }
             case BA_PACKET_JSON_PING: {
@@ -465,10 +514,8 @@ auto NetworkReader::RunThread_() -> int {
                   msg[0] = BA_PACKET_JSON_PONG;
                   memcpy(msg.data() + 1, response.c_str(), response.size());
                   std::scoped_lock lock(sd_mutex_);
-                  sendto(
-                      sd, msg.data(),
-                      static_cast_check_fit<socket_send_length_t>(msg.size()),
-                      0, reinterpret_cast<sockaddr*>(&from), from_size);
+                  SendToSd_(sd, msg.data(), msg.size(),
+                            reinterpret_cast<sockaddr*>(&from), from_size);
                 }
               }
               break;
@@ -586,6 +633,16 @@ void NetworkReader::OpenSockets_() {
   // This needs to be locked during any socket-descriptor changes/writes.
   std::scoped_lock lock(sd_mutex_);
 
+#if BA_PLATFORM_WEB
+  // Web: a single IPv4 socket backed by a WebRTC data channel to our
+  // gateway (see web_udp.h). No IPv6; nothing to bind.
+  WebUdpOpen();
+  sd4_ = kWebUdpSocket;
+  sd6_ = -1;
+  port6_ = port4_;
+  return;
+#endif
+
   // Opt out of engine UDP entirely. sd4_/sd6_ stay -1, so nothing is
   // received *or sent* (SendTo() drops everything): no joining or
   // hosting games, no LAN discovery, no remote app. For test processes
@@ -656,7 +713,7 @@ void NetworkReader::OpenSockets_() {
 
       // Wuh oh; no ipv6 for us i guess.
       if (result != 0) {
-        g_core->platform->CloseSocket(sd4_);
+        CloseSd_(sd4_);
         sd4_ = -1;
       }
     }
@@ -721,7 +778,7 @@ void NetworkReader::OpenSockets_() {
       result = ::bind(sd6_, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
       if (result != 0) {
         // Wuh oh; no ipv6 for us i guess.
-        g_core->platform->CloseSocket(sd6_);
+        CloseSd_(sd6_);
         sd6_ = -1;
       }
     }

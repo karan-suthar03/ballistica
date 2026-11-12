@@ -2377,6 +2377,11 @@ class AssetSubsystem(AppSubsystem):
                 if missing:
                     # Not fully local; let the online path handle this set
                     # (download desired flavors / builtin fallback / fail).
+                    logger.debug(
+                        'Offline resolve: %s not fully local (missing %s).',
+                        apvernum,
+                        missing,
+                    )
                     return None
                 results.append(
                     self._finalize_one(

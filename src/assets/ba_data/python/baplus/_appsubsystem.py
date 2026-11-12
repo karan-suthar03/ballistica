@@ -38,6 +38,14 @@ class PlusAppSubsystem(AppSubsystem):
         #: Ad wrangling functionality.
         self.ads: AdsSubsystem = AdsSubsystem()
 
+        # Builds without the native plus (web, NO_PLUS servers) run an
+        # offline pure-Python _baplus with no native side to provide
+        # cloud/accounts; attach stand-ins for those.
+        if getattr(_baplus, 'IS_OFFLINE_STANDIN', False):
+            import bawebplus
+
+            bawebplus.attach(self)
+
     @override
     def on_app_loading(self) -> None:
         """:meta private:"""

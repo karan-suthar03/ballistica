@@ -770,14 +770,14 @@ void BaseFeatureSet::StopEventLoopThreads_() {
           + "ms.");
 }
 
-#if BA_PLATFORM_WEB
-/// Offline stand-in for the closed-source plus feature-set on web builds
-/// (plus ships only as precompiled native libs, so it can't be linked into
-/// wasm). Native counterpart of ba_data/python/bawebplus.py: behaves like
+#if BA_NO_PLUS
+/// Offline stand-in for the closed-source plus feature-set, used by builds
+/// without it (BA_NO_PLUS: web, where plus can't be linked into wasm, and
+/// self-hosted NO_PLUS servers). Native counterpart of ba_data/python/bawebplus.py: behaves like
 /// a permanently offline client with nobody signed in -- no accounts,
 /// cloud, analytics, purchases or ads. Local play and joining servers by
 /// address don't need any of that.
-class WebOfflinePlus : public PlusSoftInterface {
+class OfflinePlus : public PlusSoftInterface {
  public:
   void OnAppStart() override {}
   void OnAppSuspend() override {}
@@ -822,13 +822,13 @@ class WebOfflinePlus : public PlusSoftInterface {
 };
 
 /// Use the offline stand-in when no real plus registered itself.
-static void EnsureWebOfflinePlus_(PlusSoftInterface** plus_soft) {
+static void EnsureOfflinePlus_(PlusSoftInterface** plus_soft) {
   if (*plus_soft == nullptr) {
-    static WebOfflinePlus offline_plus;
+    static OfflinePlus offline_plus;
     *plus_soft = &offline_plus;
   }
 }
-#endif  // BA_PLATFORM_WEB
+#endif  // BA_NO_PLUS
 
 auto BaseFeatureSet::HavePlus() -> bool {
   if (!plus_soft_ && !tried_importing_plus_) {
@@ -838,8 +838,8 @@ auto BaseFeatureSet::HavePlus() -> bool {
     // attempts shouldn't hurt anything.
     tried_importing_plus_ = true;
   }
-#if BA_PLATFORM_WEB
-  EnsureWebOfflinePlus_(&plus_soft_);
+#if BA_NO_PLUS
+  EnsureOfflinePlus_(&plus_soft_);
 #endif
   return plus_soft_ != nullptr;
 }
@@ -858,8 +858,8 @@ auto BaseFeatureSet::Plus() -> PlusSoftInterface* {
     // attempts shouldn't hurt anything.
     tried_importing_plus_ = true;
   }
-#if BA_PLATFORM_WEB
-  EnsureWebOfflinePlus_(&plus_soft_);
+#if BA_NO_PLUS
+  EnsureOfflinePlus_(&plus_soft_);
 #endif
   if (!plus_soft_) {
     throw Exception("plus feature-set not present.");

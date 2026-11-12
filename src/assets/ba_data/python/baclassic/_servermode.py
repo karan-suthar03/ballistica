@@ -272,8 +272,14 @@ class ServerController:
         plus = babase.app.plus
         assert plus is not None
 
+        # Builds without the native plus (NO_PLUS self-hosted servers)
+        # have no cloud or v1 account to wait for; serve right away.
+        offline = getattr(
+            sys.modules.get('_baplus'), 'IS_OFFLINE_STANDIN', False
+        )
+
         # Cloud connectivity is a prerequisite (v1 comms goes through this now).
-        if not plus.cloud.connected:
+        if not offline and not plus.cloud.connected:
             # Bringing up a cloud connection should not take long;
             # complain if it does.
             curtime = time.time()
@@ -286,7 +292,7 @@ class ServerController:
         # purpose: headless servers have no v2 account; they sign in to
         # v1 as 'Local', which the v1 master server's game list needs.)
         signed_in = plus.get_v1_account_state() == 'signed_in'
-        if not signed_in:
+        if not offline and not signed_in:
             # Signing in to the local server account should not take long;
             # complain if it does...
             curtime = time.time()

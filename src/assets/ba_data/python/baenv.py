@@ -31,6 +31,16 @@ if sys.platform == 'emscripten':
     import bawebshims
 
     bawebshims.install()
+else:
+    # Native builds made without the closed-source plus (the NO_PLUS
+    # cmake option, for self-hosted servers) have no _baplus either; use
+    # the same offline stand-in as web.
+    import importlib.util
+
+    if importlib.util.find_spec('_baplus') is None:
+        import bawebplus
+
+        sys.modules.setdefault('_baplus', bawebplus)
 
 if TYPE_CHECKING:
     from typing import Any, Callable

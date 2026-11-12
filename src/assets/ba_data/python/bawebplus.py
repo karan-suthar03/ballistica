@@ -3,19 +3,21 @@
 """Offline stand-in for the closed-source native ``_baplus`` module.
 
 Web (emscripten) builds can't link the plus feature-set (it ships only
-as precompiled native libs). Much game code assumes ``app.plus`` exists,
-so instead of patching every call site we provide this pure-Python
-``_baplus`` (registered in sys.modules by bawebshims). The open-source
-``baplus`` package then runs on top of it unchanged.
+as precompiled native libs), and self-hosted servers built with the
+NO_PLUS cmake option leave it out. Much game code assumes ``app.plus``
+exists, so instead of patching every call site we provide this
+pure-Python ``_baplus`` (registered in sys.modules by bawebshims on web,
+by baenv on native). The open-source ``baplus`` package then runs on top
+of it unchanged.
 
 Everything here behaves like a permanently offline client with nobody
 signed in: no accounts, no cloud, no purchases, no ads. Local play and
 joining servers by address don't need any of that.
 """
 
-from __future__ import annotations
 
 import os
+import sys
 import concurrent.futures
 from typing import TYPE_CHECKING
 
@@ -24,7 +26,10 @@ if TYPE_CHECKING:
 
     from baplus import PlusAppSubsystem
 
-_OFFLINE_MSG = 'Cloud functionality is not available in web builds.'
+_OFFLINE_MSG = 'Cloud functionality is not available in this build.'
+
+# Lets babase tell this stand-in apart from the real native _baplus.
+IS_OFFLINE_STANDIN = True
 
 # ---------------------------------------------------------------------------
 # Native _baplus function surface (see baplus/_appsubsystem.py, _ads.py).
@@ -38,7 +43,8 @@ def web_stage(name: str) -> None:
     the shell picks up '@@stage <name>' lines) so it doesn't depend on
     the engine's stdout redirection or log levels.
     """
-    os.write(1, f'@@stage {name}\n'.encode())
+    if sys.platform == 'emscripten':
+        os.write(1, f'@@stage {name}\n'.encode())
 
 
 def on_app_loading() -> None:

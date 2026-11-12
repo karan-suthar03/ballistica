@@ -5,6 +5,9 @@ option(HEADLESS "build headless server" OFF)
 option(DISCORD "enable Discord Social SDK integration" OFF)
 option(REQUIRE_OS_FONT_RENDERING "fail if pangocairo is not found" ON)
 option(PORTABLE "self-contained Linux build using bundled deps" OFF)
+# Leave out the closed-source plus feature-set (prebuilt lib) and run the
+# offline stand-ins instead, like web builds do. For self-hosted servers.
+option(NO_PLUS "build without the prebuilt plus library" OFF)
 
 # Which app variant to build. Variant describes the distribution
 # audience for a build (who it is distributed to and how the master
@@ -154,6 +157,13 @@ else()
   set(Python3_FIND_FRAMEWORK NEVER)
   # TODO: Look into using Development.Module/Development.Embed here.
   find_package(Python3 3.14 EXACT REQUIRED COMPONENTS Development)
+endif()
+
+if(NO_PLUS)
+  target_compile_definitions(common_deps INTERFACE BA_NO_PLUS=1)
+  set(_BA_PLUS_LIB "")
+else()
+  set(_BA_PLUS_LIB ${CMAKE_CURRENT_BINARY_DIR}/prefablib/libballisticaplus.a)
 endif()
 
 if(HEADLESS)
@@ -696,6 +706,8 @@ set(BALLISTICA_SOURCES
   ${BA_SRC_ROOT}/ballistica/base/networking/network_writer.h
   ${BA_SRC_ROOT}/ballistica/base/networking/networking.cc
   ${BA_SRC_ROOT}/ballistica/base/networking/networking.h
+  ${BA_SRC_ROOT}/ballistica/base/networking/web_udp.cc
+  ${BA_SRC_ROOT}/ballistica/base/networking/web_udp.h
   ${BA_SRC_ROOT}/ballistica/base/platform/android/android_message_bus.cc
   ${BA_SRC_ROOT}/ballistica/base/platform/android/android_message_bus.h
   ${BA_SRC_ROOT}/ballistica/base/python/base_python.cc
@@ -1310,7 +1322,7 @@ if(EMSCRIPTEN)
     -sDEFAULT_PTHREAD_STACK_SIZE=1MB
     -sWASM_BIGINT=1
     -sFORCE_FILESYSTEM=1
-    -sEXPORTED_FUNCTIONS=_main,__PyRuntime,__PyEM_EMSCRIPTEN_TRAMPOLINE_OFFSET
+    -sEXPORTED_FUNCTIONS=_main,__PyRuntime,__PyEM_EMSCRIPTEN_TRAMPOLINE_OFFSET,_ba_web_udp_recv,_malloc,_free
     -sEXPORTED_RUNTIME_METHODS=FS,ENV,callMain
     # Keep wasm function names so stacks (devtools, web/tools/stacks.mjs,
     # crash logs) are readable. Small size cost; worth it while porting.
@@ -1318,7 +1330,7 @@ if(EMSCRIPTEN)
   )
 else()
 target_link_libraries(ballisticakitbin PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}/prefablib/libballisticaplus.a ode pthread dl common_deps ba_deps Python3::Python
+  ${_BA_PLUS_LIB} ode pthread dl common_deps ba_deps Python3::Python
 )
 endif()
 
@@ -1362,6 +1374,6 @@ target_include_directories(ballisticakitso PRIVATE
 )
 
 target_link_libraries(ballisticakitso PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}/prefablib/libballisticaplus.a ode pthread dl common_deps ba_deps Python3::Python
+  ${_BA_PLUS_LIB} ode pthread dl common_deps ba_deps Python3::Python
 )
 

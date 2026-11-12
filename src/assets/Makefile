@@ -622,6 +622,8 @@ SCRIPT_TARGETS_PY_PUBLIC = \
   $(BUILD_DIR)/ba_data/python/bauiv1lib/utils.py \
   $(BUILD_DIR)/ba_data/python/bauiv1lib/v2upgrade.py \
   $(BUILD_DIR)/ba_data/python/bauiv1lib/watch.py \
+  $(BUILD_DIR)/ba_data/python/bawebplus.py \
+  $(BUILD_DIR)/ba_data/python/bawebshims.py \
   $(BUILD_DIR)/server_package/ballisticakit_server.py
 
 SCRIPT_TARGETS_SO_PUBLIC = \
