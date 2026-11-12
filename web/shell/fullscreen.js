@@ -13,8 +13,9 @@
     || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
   const root = document.documentElement;
 
-  // Automatic fullscreen on the first tap/click; off for now.
-  const AUTO_FULLSCREEN = false;
+  // Automatic fullscreen on the first tap/click: on for the deployed
+  // site, off for local previews (localhost).
+  const AUTO_FULLSCREEN = !['localhost', '127.0.0.1'].includes(location.hostname);
 
   if (!standalone && root.requestFullscreen) {
     if (!AUTO_FULLSCREEN) return;

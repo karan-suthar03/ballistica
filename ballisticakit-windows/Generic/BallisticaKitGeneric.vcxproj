@@ -457,6 +457,8 @@
     <ClInclude Include="..\..\src\ballistica\base\networking\network_writer.h" />
     <ClCompile Include="..\..\src\ballistica\base\networking\networking.cc" />
     <ClInclude Include="..\..\src\ballistica\base\networking\networking.h" />
+    <ClCompile Include="..\..\src\ballistica\base\networking\web_udp.cc" />
+    <ClInclude Include="..\..\src\ballistica\base\networking\web_udp.h" />
     <ClCompile Include="..\..\src\ballistica\base\platform\android\android_message_bus.cc" />
     <ClInclude Include="..\..\src\ballistica\base\platform\android\android_message_bus.h" />
     <ClCompile Include="..\..\src\ballistica\base\python\base_python.cc" />
