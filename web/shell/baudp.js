@@ -61,7 +61,9 @@
     if (frame.length <= 6 || !Module._ba_web_udp_recv) return;
     const p = Module._malloc(frame.length);
     if (!p) return;
-    Module.HEAPU8.set(frame, p);
+    // HEAPU8 isn't exported on Module; the engine's global view is
+    // re-created when memory grows, so read it at call time.
+    (Module.HEAPU8 || self.HEAPU8).set(frame, p);
     Module._ba_web_udp_recv(p, frame.length);  // takes ownership
   }
 
