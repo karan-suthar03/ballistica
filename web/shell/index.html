@@ -47,12 +47,12 @@
     print: t => log('out', t),
     printErr: t => log('err', t),
     setStatus: t => {
-      // "Downloading data... (a/b)" -> "Downloading… 12 / 60 MB (20%)".
+      // "Downloading data... (a/b)" -> "Downloading… 20%". The counts are
+      // unpacked sizes; the transfer is brotli-compressed (~55% of that),
+      // so MB figures would overstate it. Show progress only.
       const m = /\((\d+)\/(\d+)\)/.exec(t || '');
       if (m) {
-        const mb = n => (n / 1e6).toFixed(0);
-        status.textContent = `Downloading… ${mb(m[1])} / ${mb(m[2])} MB` +
-          ` (${Math.floor(100 * m[1] / m[2])}%)`;
+        status.textContent = `Downloading… ${Math.floor(100 * m[1] / m[2])}%`;
         return;
       }
       status.textContent = t;
