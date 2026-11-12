@@ -128,6 +128,16 @@ bool PlatformLinux::DoHasTouchScreen() {
 #endif
 }
 
+auto PlatformLinux::IsRunningOnDesktop() -> bool {
+#if BA_PLATFORM_WEB
+  // Phones/tablets in a browser aren't desktops: this turns on the UI's
+  // touch mode (drag-to-scroll menus, etc.).
+  return !DoHasTouchScreen();
+#else
+  return true;
+#endif
+}
+
 std::string PlatformLinux::GetLegacyPlatformName() { return "linux"; }
 
 std::string PlatformLinux::GetLegacySubplatformName() {

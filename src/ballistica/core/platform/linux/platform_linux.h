@@ -20,6 +20,7 @@ class PlatformLinux : public Platform {
   auto DoGetConfigDirectoryMonolithicDefault()
       -> std::optional<std::string> override;
   auto DoHasTouchScreen() -> bool override;
+  auto IsRunningOnDesktop() -> bool override;
   auto GetLegacyPlatformName() -> std::string override;
   auto GetLegacySubplatformName() -> std::string override;
   auto GetDeviceUUIDInputs() -> std::list<std::string> override;
