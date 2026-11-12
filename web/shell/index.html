@@ -18,8 +18,13 @@
      sizes: a canvas with width:auto takes its pixel size (2-3x the screen
      on phones); 100dvh is the visible height, unlike 100vh on Android. */
   canvas {
-    display: block; position: fixed; left: 0; top: 0; touch-action: none;
-    width: 100vw; height: 100vh; height: 100dvh;
+    /* --edge: a small even margin all round, so nothing sits under
+       rounded corners or right at the bezel. */
+    --edge: 10px;
+    display: block; position: fixed; left: var(--edge); top: var(--edge);
+    touch-action: none;
+    width: calc(100vw - 2 * var(--edge));
+    height: calc(100vh - 2 * var(--edge)); height: calc(100dvh - 2 * var(--edge));
   }
 </style>
 <link rel="stylesheet" href="loader.css?v=__BUILD__">
