@@ -7,6 +7,9 @@
   const GATE = new URLSearchParams(location.search).get('gate')
     || 'https://play.karansuthar.me';
   const MAX_QUEUE = 256;
+  // Python's own UDP sockets (the pre-join probe) go through emscripten's
+  // socket layer, which speaks WebSocket; send them all to the gateway.
+  Module.websocket = { url: GATE.replace(/^http/, 'ws') + '/ws', subprotocol: 'binary' };
   let pc = null, dc = null, connecting = false, queue = [], retryAt = 0;
   const say = t => (window.log ? window.log('out', `[udp] ${t}`) : console.log(t));
 

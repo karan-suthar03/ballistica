@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -209,6 +210,69 @@ func handleRTC(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pc.LocalDescription())
 }
 
+// handleWS serves the web build's emscripten socket layer, which turns
+// Python UDP sockets (the pre-join requirements probe) into WebSockets.
+// The shell points every such socket at this one URL, so all datagrams go
+// to our game server (the first -allow entry). Emscripten first sends a
+// 'port' message ([ff ff ff ff 'p' 'o' 'r' 't' hi lo]); we skip it.
+func handleWS(w http.ResponseWriter, r *http.Request) {
+	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		Subprotocols:    []string{"binary"},
+		OriginPatterns:  originHosts(),
+		CompressionMode: websocket.CompressionDisabled,
+	})
+	if err != nil {
+		return
+	}
+	defer ws.CloseNow()
+	if int(peers.Add(1)) > *maxPeers {
+		peers.Add(-1)
+		return
+	}
+	defer peers.Add(-1)
+	udp, err := net.ListenUDP("udp4", &net.UDPAddr{})
+	if err != nil {
+		return
+	}
+	defer udp.Close()
+	ctx := r.Context()
+	go func() {
+		buf := make([]byte, 65536)
+		for {
+			udp.SetReadDeadline(time.Now().Add(*idle))
+			n, _, err := udp.ReadFromUDPAddrPort(buf)
+			if err != nil {
+				ws.CloseNow()
+				return
+			}
+			if ws.Write(ctx, websocket.MessageBinary, buf[:n]) != nil {
+				return
+			}
+		}
+	}()
+	for {
+		_, data, err := ws.Read(ctx)
+		if err != nil {
+			return
+		}
+		if len(data) == 10 && string(data[:8]) == "\xff\xff\xff\xffport" {
+			continue
+		}
+		udp.WriteToUDPAddrPort(data, wsTarget)
+	}
+}
+
+func originHosts() []string {
+	var hosts []string
+	for _, o := range strings.Split(*origins, ",") {
+		o = strings.TrimPrefix(strings.TrimPrefix(o, "https://"), "http://")
+		hosts = append(hosts, o)
+	}
+	return hosts
+}
+
+var wsTarget netip.AddrPort
+
 func main() {
 	flag.Parse()
 	var err error
@@ -221,6 +285,9 @@ func main() {
 			log.Fatalf("bad -allow entry %q: %v", a, err)
 		}
 		allowed[ap] = true
+		if !wsTarget.IsValid() {
+			wsTarget = ap
+		}
 	}
 
 	mux, err := net.ListenUDP("udp4", &net.UDPAddr{Port: *rtcPort})
@@ -235,6 +302,7 @@ func main() {
 
 	m := http.NewServeMux()
 	m.HandleFunc("/rtc", handleRTC)
+	m.HandleFunc("/ws", handleWS)
 	m.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})

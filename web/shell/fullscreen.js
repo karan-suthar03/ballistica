@@ -15,7 +15,9 @@
 
   // Automatic fullscreen on the first tap/click: on for the deployed
   // site, off for local previews (localhost).
-  const AUTO_FULLSCREEN = !['localhost', '127.0.0.1'].includes(location.hostname);
+  // Phones/tablets only (touch as the main pointer); never on desktop.
+  const AUTO_FULLSCREEN = !['localhost', '127.0.0.1'].includes(location.hostname)
+    && matchMedia('(pointer: coarse)').matches;
 
   if (!standalone && root.requestFullscreen) {
     if (!AUTO_FULLSCREEN) return;
