@@ -13,7 +13,11 @@
     || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
   const root = document.documentElement;
 
+  // Automatic fullscreen on the first tap/click; off for now.
+  const AUTO_FULLSCREEN = false;
+
   if (!standalone && root.requestFullscreen) {
+    if (!AUTO_FULLSCREEN) return;
     const goFullscreen = () => {
       if (document.fullscreenElement) return;
       root.requestFullscreen({ navigationUI: 'hide' })

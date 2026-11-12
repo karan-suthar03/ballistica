@@ -4,6 +4,8 @@
 
 from typing import TYPE_CHECKING, override
 import logging
+import os
+import sys
 
 import bauiv1 as bui
 from bauiv1 import _classicassets
@@ -12,6 +14,10 @@ import bascenev1 as bs
 
 if TYPE_CHECKING:
     from typing import Any, Callable
+
+# Our own game server, which the web build's Gather button joins directly.
+HOME_SERVER = ('130.210.6.57', 43210)
+HOME_SERVER_NAME = "Karan's server"
 
 
 class MainMenuWindow(bui.MainWindow):
@@ -281,6 +287,20 @@ class MainMenuWindow(bui.MainWindow):
                 f' build {app.env.engine_build_number}.'
                 f' Copyright 2011-2026 Eric Froemling.'
             ),
+            h_align='center',
+            v_align='center',
+            transition_delay=thistdelay,
+        )
+
+        # Credit for this port.
+        bui.textwidget(
+            parent=self._root_widget,
+            position=(self._width * 0.5, button_y_offs - 32),
+            size=(0, 0),
+            scale=0.55,
+            flatness=1.0,
+            color=(1.0, 0.8, 0.3, 0.85),
+            text='Web & online port by Karan \u00b7 github.com/karan-suthar03',
             h_align='center',
             v_align='center',
             transition_delay=thistdelay,
@@ -590,6 +610,12 @@ class MainMenuWindow(bui.MainWindow):
             )
 
     def _gather_press(self) -> None:
+        # Web build: Gather goes straight to our own server; no tabs.
+        # By Karan (@karan-suthar03), 2026-11-12.
+        if sys.platform == 'emscripten':
+            self._join_home_server()
+            return
+
         from bauiv1lib.localnetwork import (
             local_network_permission_missing,
             show_local_network_permission_dialog,
@@ -604,6 +630,21 @@ class MainMenuWindow(bui.MainWindow):
             )
             return
         self._open_gather_window()
+
+    def _join_home_server(self) -> None:
+        """Connect to our own game server (web build's Gather button)."""
+        # BA_HOME_SERVER=ip:port overrides (the web shell sets it from
+        # ?server=).
+        addr, port = HOME_SERVER
+        override = os.environ.get('BA_HOME_SERVER')
+        if override and ':' in override:
+            host, _, port_str = override.rpartition(':')
+            if port_str.isdigit():
+                addr, port = host, int(port_str)
+        bui.screenmessage(f'Connecting to {HOME_SERVER_NAME}...')
+        if bs.app.classic is not None:
+            bs.app.classic.save_ui_state()
+        bs.connect_to_party(addr, port=port)
 
     def _open_gather_window(self) -> None:
         # pylint: disable=cyclic-import

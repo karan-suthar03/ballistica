@@ -27,6 +27,7 @@
     <div class="row"><span class="stage">Getting ready</span><span class="pct">0%</span></div>
     <div class="track"><div class="fill"></div></div>
     <p class="hint">The first visit downloads the game (about 55 MB).<br>Later visits load from your browser's cache.</p>
+    <p class="hint credit">Web &amp; online port by <b>Karan</b> · <a href="https://github.com/karan-suthar03" target="_blank" rel="noopener">@karan-suthar03</a></p>
   </div>
 </div>
 <div id="rotate"><img src="logo.png?v=__BUILD__" alt=""><p>Rotate your phone to landscape</p></div>
@@ -90,6 +91,9 @@
         const shortSide = Math.min(screen.width, screen.height);
         Module.ENV.BA_UI_SCALE = shortSide < 600 ? 'small' : 'medium';
       }
+      // ?server=ip:port: which server the Gather button joins.
+      const server = new URLSearchParams(location.search).get('server');
+      if (server) Module.ENV.BA_HOME_SERVER = server;
       const levels = new URLSearchParams(location.search).get('log');
       if (levels) {
         Module.ENV.BA_LOG_LEVELS = levels;

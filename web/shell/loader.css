@@ -74,3 +74,5 @@
   0%, 30% { transform: rotate(0); }
   60%, 100% { transform: rotate(-90deg); }
 }
+#loader .credit { margin-top: 10px; opacity: .85; }
+#loader .credit a { color: inherit; }
