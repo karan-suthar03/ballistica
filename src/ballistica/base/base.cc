@@ -815,7 +815,8 @@ class OfflinePlus : public PlusSoftInterface {
       -> std::string override {
     return "";
   }
-  void V1SetClientInfo(JsonObjBuilder* dict) override {}
+  // Hosts require a "tk" (v1 account token) field; we have no account.
+  void V1SetClientInfo(JsonObjBuilder* dict) override { dict->Add("tk", ""); }
   void DoPushSubmitAnalyticsCountsCall(const std::string& sval) override {}
   void SetHaveIncentivizedAd(bool val) override {}
   auto HaveIncentivizedAd() -> bool override { return false; }
