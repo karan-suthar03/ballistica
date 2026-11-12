@@ -91,6 +91,19 @@
         const shortSide = Math.min(screen.width, screen.height);
         Module.ENV.BA_UI_SCALE = shortSide < 600 ? 'small' : 'medium';
       }
+      // The engine identifies this device by /etc/machine-id (Linux);
+      // give each browser a stable random one.
+      let mid = null;
+      try { mid = localStorage.getItem('baMachineId'); } catch (e) {}
+      if (!mid || !/^[0-9a-f]{32}$/.test(mid)) {
+        mid = Array.from(crypto.getRandomValues(new Uint8Array(16)),
+          b => b.toString(16).padStart(2, '0')).join('');
+        try { localStorage.setItem('baMachineId', mid); } catch (e) {}
+      }
+      try {
+        Module.FS.mkdirTree('/etc');
+        Module.FS.writeFile('/etc/machine-id', mid + '\n');
+      } catch (e) { log('err', `machine-id: ${e}`); }
       // ?server=ip:port: which server the Gather button joins.
       const server = new URLSearchParams(location.search).get('server');
       if (server) Module.ENV.BA_HOME_SERVER = server;
