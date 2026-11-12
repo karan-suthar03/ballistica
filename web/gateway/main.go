@@ -162,10 +162,18 @@ func handleRTC(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	remote := r.Header.Get("X-Forwarded-For")
+	if remote == "" {
+		remote = r.RemoteAddr
+	}
+	start := time.Now()
+	log.Printf("client %s: offer (%d peers)", remote, peers.Load())
+	// 'disconnected' is often a brief blip that ICE recovers from; only
+	// give up on 'failed' (or our own idle timeout).
 	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
+		log.Printf("client %s: %s after %s", remote, s, time.Since(start).Round(time.Second))
 		switch s {
-		case webrtc.PeerConnectionStateFailed, webrtc.PeerConnectionStateClosed,
-			webrtc.PeerConnectionStateDisconnected:
+		case webrtc.PeerConnectionStateFailed, webrtc.PeerConnectionStateClosed:
 			c.close()
 		}
 	})
@@ -180,6 +188,7 @@ func handleRTC(w http.ResponseWriter, r *http.Request) {
 		defer t.Stop()
 		for range t.C {
 			if time.Since(time.Unix(c.lastSeen.Load(), 0)) > *idle {
+				log.Printf("client %s: idle timeout", remote)
 				c.close()
 			}
 			if pc.ConnectionState() == webrtc.PeerConnectionStateClosed {

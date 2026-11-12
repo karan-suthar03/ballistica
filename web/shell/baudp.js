@@ -28,7 +28,9 @@
       dc.onmessage = e => deliver(new Uint8Array(e.data));
       dc.onclose = () => { say('channel closed'); dc = null; };
       pc.onconnectionstatechange = () => {
-        if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+        say(`connection ${pc.connectionState}`);
+        // 'disconnected' is usually a brief blip ICE recovers from.
+        if (['failed', 'closed'].includes(pc.connectionState)) {
           say(`connection ${pc.connectionState}`);
           try { pc.close(); } catch (e) {}
           dc = null;
