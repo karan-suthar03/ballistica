@@ -14,26 +14,30 @@
   const say = t => (window.log ? window.log('out', `[udp] ${t}`) : console.log(t));
 
   async function connect() {
-    if (connecting || (dc && dc.readyState === 'open')) return;
+    // One link at a time: a channel that is still opening counts too
+    // (otherwise every packet sent meanwhile opened another connection,
+    // and the server saw one player arriving from several addresses).
+    if (connecting || (dc && ['open', 'connecting'].includes(dc.readyState))) return;
     if (performance.now() < retryAt) return;
     connecting = true;
     try {
-      pc = new RTCPeerConnection();
-      dc = pc.createDataChannel('udp', { ordered: false, maxRetransmits: 0 });
-      dc.binaryType = 'arraybuffer';
-      dc.onopen = () => {
+      if (pc) { try { pc.close(); } catch (e) {} }
+      const myPc = new RTCPeerConnection();
+      const myDc = myPc.createDataChannel('udp', { ordered: false, maxRetransmits: 0 });
+      pc = myPc; dc = myDc;
+      myDc.binaryType = 'arraybuffer';
+      myDc.onopen = () => {
         say(`connected to ${GATE}`);
-        for (const f of queue.splice(0)) dc.send(f);
+        for (const f of queue.splice(0)) myDc.send(f);
       };
-      dc.onmessage = e => deliver(new Uint8Array(e.data));
-      dc.onclose = () => { say('channel closed'); dc = null; };
-      pc.onconnectionstatechange = () => {
-        say(`connection ${pc.connectionState}`);
+      myDc.onmessage = e => deliver(new Uint8Array(e.data));
+      myDc.onclose = () => { say('channel closed'); if (dc === myDc) dc = null; };
+      myPc.onconnectionstatechange = () => {
+        say(`connection ${myPc.connectionState}`);
         // 'disconnected' is usually a brief blip ICE recovers from.
-        if (['failed', 'closed'].includes(pc.connectionState)) {
-          say(`connection ${pc.connectionState}`);
-          try { pc.close(); } catch (e) {}
-          dc = null;
+        if (['failed', 'closed'].includes(myPc.connectionState)) {
+          try { myPc.close(); } catch (e) {}
+          if (dc === myDc) dc = null;
         }
       };
       await pc.setLocalDescription(await pc.createOffer());
