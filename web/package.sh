@@ -83,5 +83,8 @@ cp "$WEB/ballisticakit.js" "$WEB/ballisticakit.wasm" "$DIST/"
 cp web/shell/*.html web/shell/*.js web/shell/*.css web/shell/*.png \
   web/shell/*.webmanifest "$DIST/"
 sed -i "s/__BUILD__/$(date +%s)/g" "$DIST/index.html"
+# Version shown on the loading screen: commit + build time (IST).
+VERSION="$(git rev-parse --short HEAD)$(git diff --quiet HEAD -- web src || echo +)  ·  $(TZ=Asia/Kolkata date '+%d %b %H:%M')"
+sed -i "s/__VERSION__/$VERSION/g" "$DIST/index.html"
 web/compress.sh >/dev/null
 ls -la "$DIST"
