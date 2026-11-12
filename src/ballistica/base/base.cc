@@ -1,6 +1,7 @@
 // Released under the MIT License. See LICENSE for details.
 
 #include "ballistica/base/base.h"
+#include "ballistica/shared/generic/json_facade.h"
 
 #include <algorithm>
 #include <cstdio>
