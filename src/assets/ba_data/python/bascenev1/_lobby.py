@@ -5,6 +5,7 @@
 # pylint: disable=too-many-lines
 
 import logging
+import os
 import sys
 import weakref
 from dataclasses import dataclass
@@ -535,6 +536,37 @@ class Chooser:
         self._update_icon()
         self._update_text()
 
+    def _own_profile_only(
+        self, input_device: Any, is_remote: bool, fixed: bool
+    ) -> bool:
+        """Cut our profile list down to the player's own; True if done."""
+        if fixed:
+            return False
+        own_name = ''
+        if not is_remote and sys.platform == 'emscripten':
+            own_name = os.environ.get('BA_DEVICE_NAME', '').strip()
+        if not own_name:
+            try:
+                own_name = input_device.get_v1_account_name(False).strip()
+            except Exception:
+                own_name = ''
+        if own_name and own_name in self._profiles:
+            self._profiles = {own_name: self._profiles[own_name]}
+        elif '__account__' in self._profiles:
+            self._profiles = {'__account__': self._profiles['__account__']}
+        elif own_name:
+            self._profiles = {
+                own_name: {
+                    'character': 'Spaz',
+                    'color': [0.13, 0.53, 1.0],
+                    'highlight': [1.0, 0.6, 0.1],
+                    'global': False,
+                }
+            }
+        else:
+            return False
+        return True
+
     def reload_profiles(self) -> None:
         """Reload all player profiles."""
 
@@ -624,15 +656,13 @@ class Chooser:
         fixed = self.lobby.fixed_profiles is not None and bool(self._profiles)
         fixed_editable = fixed and self.lobby.fixed_profiles_editable
 
-        # Web builds: once the player has a profile of their own (their
-        # name, from bauiv1lib/webname), no random one.
-        web = sys.platform == 'emscripten'
-        web_named = web and any(
-            not name.startswith('_') for name in self._profiles
-        )
-
+        # Players can only be themselves: the lobby offers exactly one
+        # profile, named after the player (web: the name typed in-game;
+        # otherwise the client's account/device name), so nobody can
+        # switch to someone else's name or a random one.
+        own = self._own_profile_only(input_device, is_remote, fixed)
         # Add in a random one so we're ok even if there's no user profiles.
-        if not fixed and not web_named:
+        if not fixed and not own:
             self._profiles['_random'] = {}
 
         # In kiosk mode we disable account profiles to force random.
@@ -650,6 +680,7 @@ class Chooser:
             not is_remote
             and not is_test_input
             and not arcade_or_demo
+            and not own
             and (not fixed or fixed_editable)
         ):
             self._profiles['_edit'] = {}
