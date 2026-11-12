@@ -362,6 +362,10 @@ class Chooser:
         profilenames = self._profilenames
         inputdevice = self._sessionplayer.inputdevice
 
+        # Only one choice (players locked to their own profile): take it.
+        if len(profilenames) <= 1:
+            return 0
+
         # A session that fixes its profiles: everyone starts on the
         # first of them. (Nothing remembered or account-related comes
         # into it, and there may be no random one to fall back to.)
@@ -438,7 +442,9 @@ class Chooser:
             profileindex: int = app.classic.lobby_random_profile_index
             app.classic.lobby_random_profile_index += 1
             return profileindex
-        assert '_random' in profilenames
+        # (No random profile when players are locked to their own.)
+        if '_random' not in profilenames:
+            return 0
         return profilenames.index('_random')
 
     @property
