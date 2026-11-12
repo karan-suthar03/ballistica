@@ -33,19 +33,36 @@
     return;
   }
 
-  const ios = /iPhone|iPod/.test(navigator.userAgent);
+  // iPhone/iPad (iPadOS reports itself as a Mac with touch).
+  const ios = /iPhone|iPod|iPad/.test(navigator.userAgent)
+    || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   let dismissed = false;
   try { dismissed = localStorage.getItem('fsTipDismissed') === '1'; } catch {}
   if (!ios || standalone || dismissed) return;
 
+  const share = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">'
+    + '<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    + 'stroke-linejoin="round" d="M12 3v12M8 7l4-4 4 4M6 11H5v10h14V11h-1"/></svg>';
   const tip = document.createElement('div');
   tip.id = 'fs-tip';
-  tip.innerHTML = 'For fullscreen: tap <b>Share</b> then <b>Add to Home Screen</b>,'
-    + ' and open the game from that icon. <span>✕</span>';
-  tip.addEventListener('click', () => {
+  tip.innerHTML = `
+    <b>Play fullscreen on iPhone / iPad</b>
+    <ol>
+      <li>Tap the <b>Share</b> button ${share} in Safari's toolbar.</li>
+      <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+      <li>Tap <b>Add</b>, then open BombSquad from the new icon.</li>
+    </ol>
+    <div class="fs-actions">
+      <button data-a="never">Don't show again</button>
+      <button data-a="close">Got it</button>
+    </div>`;
+  tip.addEventListener('click', e => {
+    const a = e.target.closest('button')?.dataset.a;
+    if (!a) return;
+    if (a === 'never') {
+      try { localStorage.setItem('fsTipDismissed', '1'); } catch {}
+    }
     tip.remove();
-    try { localStorage.setItem('fsTipDismissed', '1'); } catch {}
   });
   addEventListener('load', () => document.body.appendChild(tip));
-  setTimeout(() => tip.remove(), 15000);
 })();

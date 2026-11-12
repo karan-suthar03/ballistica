@@ -49,14 +49,22 @@
 
 /* iPhone "Add to Home Screen" tip (fullscreen.js); above the loader. */
 #fs-tip {
-  position: fixed; z-index: 20; left: 50%; top: max(12px, env(safe-area-inset-top));
-  transform: translateX(-50%); width: min(420px, calc(100% - 32px));
-  box-sizing: border-box; padding: 10px 36px 10px 14px; border-radius: 10px;
-  background: rgba(20, 26, 44, .92); color: #e8ecf5;
-  font: 13px/1.4 system-ui, -apple-system, sans-serif;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .4);
+  position: fixed; z-index: 20; left: 50%; bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); width: min(380px, calc(100% - 32px));
+  box-sizing: border-box; padding: 14px 16px 12px; border-radius: 14px;
+  background: rgba(20, 26, 44, .96); color: #e8ecf5;
+  font: 14px/1.45 system-ui, -apple-system, sans-serif;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
 }
-#fs-tip span { position: absolute; right: 12px; top: 9px; color: #7d879e; }
+#fs-tip ol { margin: 8px 0 10px; padding-left: 20px; }
+#fs-tip li { margin: 4px 0; }
+#fs-tip svg { vertical-align: -3px; color: #4ea1ff; }
+#fs-tip .fs-actions { display: flex; gap: 8px; justify-content: flex-end; }
+#fs-tip button {
+  font: inherit; border: 0; border-radius: 8px; padding: 8px 12px;
+  background: #2a3350; color: #e8ecf5;
+}
+#fs-tip button[data-a="close"] { background: #ff9a2e; color: #1a1205; font-weight: 600; }
 
 /* Phones in portrait: the game is landscape-only. */
 #rotate { display: none; }
