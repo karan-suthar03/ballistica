@@ -5,6 +5,7 @@
 # pylint: disable=too-many-lines
 
 import logging
+import sys
 import weakref
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -623,8 +624,15 @@ class Chooser:
         fixed = self.lobby.fixed_profiles is not None and bool(self._profiles)
         fixed_editable = fixed and self.lobby.fixed_profiles_editable
 
+        # Web builds: once the player has a profile of their own (their
+        # name, from bauiv1lib/webname), no random one.
+        web = sys.platform == 'emscripten'
+        web_named = web and any(
+            not name.startswith('_') for name in self._profiles
+        )
+
         # Add in a random one so we're ok even if there's no user profiles.
-        if not fixed:
+        if not fixed and not web_named:
             self._profiles['_random'] = {}
 
         # In kiosk mode we disable account profiles to force random.

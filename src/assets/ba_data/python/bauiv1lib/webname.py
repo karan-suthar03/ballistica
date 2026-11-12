@@ -51,8 +51,9 @@ def apply(name: str) -> None:
     profile = profiles.pop(old, None) if old and old != name else None
     profiles[name] = profile or profiles.get(name) or default_profile()
 
-    # Tell the page to remember it (localStorage).
+    # Tell the page to remember it (localStorage), and save the profile.
     os.write(1, f'@@name {name}\n'.encode())
+    bui.app.config.commit()
 
 
 def default_profile() -> dict:

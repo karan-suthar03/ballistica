@@ -85,8 +85,22 @@ def set_v1_account_client_active(active: bool) -> None:
 
 
 def add_v1_account_transaction(transaction: dict, callback: Any) -> None:
-    """Transactions go nowhere offline."""
-    del transaction, callback
+    """Apply what makes sense locally; everything else goes nowhere.
+
+    Player profiles are kept in the local config (the native game keeps
+    them on the v1 account), so the profile editor works on the web.
+    """
+    del callback
+    import _babase
+
+    kind = transaction.get('type')
+    profiles = _babase.app.config.setdefault('Player Profiles', {})
+    if kind == 'ADD_PLAYER_PROFILE':
+        profiles[transaction['name']] = dict(transaction['profile'])
+    elif kind == 'REMOVE_PLAYER_PROFILE':
+        profiles.pop(transaction['name'], None)
+    elif kind == 'SET_PLAYER_PROFILE_GLOBAL':
+        pass  # No global (account-wide) profiles offline.
 
 
 def have_outstanding_v1_account_transactions() -> bool:
@@ -95,7 +109,10 @@ def have_outstanding_v1_account_transactions() -> bool:
 
 
 def run_v1_account_transactions() -> None:
-    """Nothing to run."""
+    """Save locally applied changes (profiles)."""
+    import _babase
+
+    _babase.app.config.commit()
 
 
 def game_service_has_leaderboard(game: str, config: str) -> bool:

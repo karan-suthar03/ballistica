@@ -3,6 +3,8 @@
 """Provides the AppConfig class."""
 
 import json
+import os
+import sys
 import logging
 from typing import TYPE_CHECKING
 
@@ -216,6 +218,13 @@ class AppConfig(dict):
             # (No sort_keys here; a mixed-key-type dict would break it.)
             cfgs = json.dumps(pruned, indent=1)
         _babase.commit_app_config(cfgs)
+
+        # Web builds: the virtual file system lives in memory, so hand
+        # the config to the page, which keeps it in localStorage and
+        # restores it before the next start.
+        if sys.platform == 'emscripten':
+            compact = json.dumps(json.loads(cfgs), separators=(',', ':'))
+            os.write(1, f'@@config {compact}\n'.encode())
 
 
 # Sentinel used by _pruned_json() to signal 'remove this value'.

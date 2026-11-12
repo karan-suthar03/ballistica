@@ -24,6 +24,39 @@ def _log_player(event: str, sp: bascenev1.SessionPlayer) -> None:
         name, client_id = '?', -1
     print(f'[player] {event}: {name!r} client={client_id}', flush=True)
 
+def _drop_older_connections_from_same_device(
+    sp: bascenev1.SessionPlayer,
+) -> None:
+    """Disconnect other connections from the device `sp` is joining from.
+
+    Devices are told apart by their public device UUID (web builds
+    derive it from a random id each browser keeps in localStorage).
+    Several players on one connection (local co-op) are unaffected.
+    """
+    try:
+        client_id = sp.inputdevice.client_id
+    except Exception:
+        return
+    if client_id < 0:
+        return  # Local player on the host itself.
+    uuid = _bascenev1.get_client_public_device_uuid(client_id)
+    if not uuid:
+        return
+    for entry in _bascenev1.get_game_roster():
+        other = entry.get('client_id')
+        if other is None or other < 0 or other == client_id:
+            continue
+        if _bascenev1.get_client_public_device_uuid(other) != uuid:
+            continue
+        name = entry.get('display_string', '?')
+        print(
+            f'[player] rejoin: device already connected as client={other}'
+            f' ({name!r}); dropping it for client={client_id}',
+            flush=True,
+        )
+        _bascenev1.disconnect_client(other, ban_time=0)
+
+
 if TYPE_CHECKING:
     from typing import Sequence, Any
 
@@ -295,6 +328,12 @@ class Session:
                     transient=True,
                 )
                 return False
+
+        # One connection per device: if this device is already connected
+        # (page reload, second tab, dropped connection), drop the old
+        # connection and let this one in, so the same person can't be in
+        # the game twice and can always rejoin.
+        _drop_older_connections_from_same_device(player)
 
         # Rejoin cooldown.
         identifier = player.get_account_id()
