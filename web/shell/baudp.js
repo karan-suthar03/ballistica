@@ -69,6 +69,14 @@
     Module._ba_web_udp_recv(p, frame.length);  // takes ownership
   }
 
+  // Connect while the game loads, so joining doesn't wait on WebRTC
+  // setup, and keep the link warm (the gateway drops idle clients).
+  setTimeout(connect, 2000);
+  setInterval(() => {
+    if (dc && dc.readyState === 'open') dc.send(new Uint8Array(6));
+    else connect();
+  }, 20000);
+
   Module.baUdp = {
     send(frame) {
       if (dc && dc.readyState === 'open') {

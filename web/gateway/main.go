@@ -71,10 +71,10 @@ func (c *client) close() {
 
 // fromBrowser forwards one frame to its UDP destination.
 func (c *client) fromBrowser(frame []byte) {
-	if len(frame) <= 6 {
-		return
-	}
 	c.lastSeen.Store(time.Now().Unix())
+	if len(frame) <= 6 {
+		return // keep-alive (header only) or junk
+	}
 	ip := netip.AddrFrom4([4]byte(frame[:4]))
 	port := binary.BigEndian.Uint16(frame[4:6])
 	if ip == ourAddr {
