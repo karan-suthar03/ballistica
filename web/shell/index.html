@@ -42,10 +42,19 @@
     logTimer = null;
     if (!logQueue.length) return;
     const body = logQueue.splice(0).join('\n') + '\n';
-    fetch('log', { method: 'POST', body }).catch(() => {});
+    fetch(LOG_URL, { method: 'POST', body }).catch(() => {});
   }
+  // Local previews log everything to the dev server; the deployed site
+  // sends only errors, warnings and connection events to the gateway.
+  const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const LOG_URL = LOCAL ? 'log' : 'https://play.karansuthar.me/log';
+  let logId = '';
+  try { logId = (localStorage.getItem('baMachineId') || '').slice(0, 8); } catch (e) {}
   function log(kind, text) {
     (kind === 'err' ? console.error : console.log)(text);
+    if (!LOCAL && kind !== 'err'
+        && !/WARNING|ERROR|Traceback|\[udp\]|ua=|ABORT/.test(text)) return;
+    if (!LOCAL) text = `${logId} ${text}`;
     logQueue.push(`[${(performance.now() / 1000).toFixed(2)}] ${kind}: ${text}`);
     if (!logTimer) logTimer = setTimeout(sendLogs, 250);
   }

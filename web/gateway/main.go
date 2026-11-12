@@ -14,7 +14,11 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
+	"fmt"
+	"os"
+	"path/filepath"
 	"encoding/json"
 	"flag"
 	"io"
@@ -282,6 +286,58 @@ func originHosts() []string {
 
 var wsTarget netip.AddrPort
 
+// Client log collection: browsers POST error/warning lines here (plain
+// text, <=32KB, rate limited per IP); stored as logs/clients-<date>.log.
+var (
+	logDir   = flag.String("log-dir", "logs", "directory for client logs")
+	logMu    sync.Mutex
+	logHits  = map[string]int{}
+	logReset = time.Now()
+)
+
+func handleLog(w http.ResponseWriter, r *http.Request) {
+	if !cors(w, r) {
+		http.Error(w, "origin not allowed", http.StatusForbidden)
+		return
+	}
+	if r.Method == http.MethodOptions {
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	ip := r.RemoteAddr
+	if h, _, err := net.SplitHostPort(ip); err == nil {
+		ip = h
+	}
+	body, _ := io.ReadAll(io.LimitReader(r.Body, 32<<10))
+	logMu.Lock()
+	defer logMu.Unlock()
+	if time.Since(logReset) > time.Minute {
+		logHits = map[string]int{}
+		logReset = time.Now()
+	}
+	logHits[ip]++
+	if logHits[ip] > 60 {
+		http.Error(w, "slow down", http.StatusTooManyRequests)
+		return
+	}
+	os.MkdirAll(*logDir, 0o755)
+	now := time.Now().UTC()
+	f, err := os.OpenFile(filepath.Join(*logDir, "clients-"+now.Format("2006-01-02")+".log"),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(strings.NewReader(string(body)))
+	for sc.Scan() {
+		fmt.Fprintf(f, "%s %s %s\n", now.Format("15:04:05"), ip, sc.Text())
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func main() {
 	flag.Parse()
 	var err error
@@ -312,6 +368,7 @@ func main() {
 	m := http.NewServeMux()
 	m.HandleFunc("/rtc", handleRTC)
 	m.HandleFunc("/ws", handleWS)
+	m.HandleFunc("/log", handleLog)
 	m.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})

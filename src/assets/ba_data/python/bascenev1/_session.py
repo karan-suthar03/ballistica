@@ -12,6 +12,18 @@ import babase
 import _bascenev1
 from bascenev1._player import Player
 
+
+def _log_player(event: str, sp: bascenev1.SessionPlayer) -> None:
+    """Server log line for joins/leaves (headless servers only)."""
+    if not babase.app.env.headless:
+        return
+    try:
+        name = sp.getname(full=True)
+        client_id = sp.inputdevice.client_id
+    except Exception:
+        name, client_id = '?', -1
+    print(f'[player] {event}: {name!r} client={client_id}', flush=True)
+
 if TYPE_CHECKING:
     from typing import Sequence, Any
 
@@ -259,6 +271,7 @@ class Session:
 
         This should return True or False to accept/reject.
         """
+        _log_player('join', player)
         # Safe up-call: bascenev1 is fully imported by the time
         # this runs; the cycle pylint sees is structural only.
         # pylint: disable-next=cyclic-import
@@ -305,6 +318,7 @@ class Session:
 
     def on_player_leave(self, sessionplayer: bascenev1.SessionPlayer) -> None:
         """Called when a previously-accepted bascenev1.SessionPlayer leaves."""
+        _log_player('leave', sessionplayer)
         # Safe up-call: bascenev1 is fully imported by the time
         # this runs; the cycle pylint sees is structural only.
         # pylint: disable-next=cyclic-import
