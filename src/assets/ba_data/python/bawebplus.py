@@ -56,7 +56,27 @@ def on_app_loading() -> None:
     # Native builds always end up with this config key (empty when there
     # are no saved profiles); the lobby reads it unconditionally when a
     # player joins, so make sure it exists.
-    _babase.app.config.setdefault('Player Profiles', {})
+    profiles = _babase.app.config.setdefault('Player Profiles', {})
+
+    # Web: the player's name (asked in-game, remembered by the page and
+    # passed back as BA_DEVICE_NAME) becomes a real player profile. With
+    # no account the lobby otherwise only has '_random' and hands out
+    # random names ('Leonidas'); it gives the first local player the
+    # first real profile, and joining a server sends this profile along.
+    # No name yet (first visit): ask once the main menu is up.
+    if sys.platform == 'emscripten':
+        import babase
+
+        def _name_setup() -> None:
+            from bauiv1lib import webname
+
+            name = webname.current()
+            if name:
+                profiles.setdefault(name, webname.default_profile())
+            else:
+                webname.ask_at_startup()
+
+        babase.pushcall(_name_setup)
 
 
 def set_v1_account_client_active(active: bool) -> None:

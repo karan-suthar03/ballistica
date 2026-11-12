@@ -34,7 +34,16 @@ def _root_ui_button_press(
 
 
 def root_ui_account_button_press() -> None:
+    import sys
+
     from bauiv1._appsubsystem import UIV1AppSubsystem
+
+    # Web builds have no sign-in: the button changes the player name.
+    if sys.platform == 'emscripten':
+        from bauiv1lib import webname
+
+        webname.ask()
+        return
 
     _root_ui_button_press(UIV1AppSubsystem.RootUIElement.ACCOUNT_BUTTON)
 

@@ -75,11 +75,23 @@
   // max-age=14400, and a stale .data.js against a fresh .data hands
   // Python garbage files ("Failed to import encodings module").
   const BUILD = '__BUILD__';
+
+  // The player's name is asked in-game (bauiv1lib/webname.py); the game
+  // reports it as '@@name <name>' and we remember it here, passing it
+  // back as BA_DEVICE_NAME on the next visit.
+  const NAME_KEY = 'baPlayerName';
+  let playerName = '';
+  try { playerName = (localStorage.getItem(NAME_KEY) || '').trim().slice(0, 16); } catch (e) {}
+
   var Module = {
     canvas: document.getElementById('canvas'),
     locateFile: path => `${path}?v=${BUILD}`,
     print: t => {
       if (t.startsWith('@@stage ')) Loader.stage(t.slice(8));
+      if (t.startsWith('@@name ')) {
+        try { localStorage.setItem(NAME_KEY, t.slice(7).trim().slice(0, 16)); } catch (e) {}
+        return;
+      }
       log('out', t);
     },
     printErr: t => log('err', t),
@@ -120,6 +132,7 @@
         Module.FS.mkdirTree('/etc');
         Module.FS.writeFile('/etc/machine-id', mid + '\n');
       } catch (e) { log('err', `machine-id: ${e}`); }
+      if (playerName) Module.ENV.BA_DEVICE_NAME = playerName;
       // ?server=ip:port: which server the Gather button joins.
       const server = new URLSearchParams(location.search).get('server');
       if (server) Module.ENV.BA_HOME_SERVER = server;

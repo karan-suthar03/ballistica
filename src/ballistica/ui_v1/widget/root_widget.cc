@@ -2437,6 +2437,14 @@ void RootWidget::UpdateAccountButtonLabel_() {
     w->set_shadow(0.2f);
     w->set_flatness(1.0f);
   } else {
+#if BA_PLATFORM_WEB
+    // Web builds have no sign-in; the button changes the player name.
+    w->SetText("Change name");
+    w->set_color(0.85f, 0.9f, 1.0f, 1.0f);
+    w->set_shadow(0.5f);
+    w->set_flatness(1.0f);
+    return;
+#endif
     w->SetText("{\"r\":\"notSignedInText\"}");
     w->set_color(1.0f, 0.2f, 0.2f, 1.0f);
     w->set_shadow(0.5f);

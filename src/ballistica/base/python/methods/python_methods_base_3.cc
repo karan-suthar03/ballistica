@@ -382,6 +382,35 @@ static PyMethodDef PyClipboardSetTextDef = {
     "adding buttons/etc. that make use of this functionality.",
 };
 
+// ----------------------------- set_device_name -------------------------------
+
+static auto PySetDeviceName(PyObject* self, PyObject* args, PyObject* keywds)
+    -> PyObject* {
+  BA_PYTHON_TRY;
+  const char* value;
+  static const char* kwlist[] = {"name", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args, keywds, "s",
+                                   const_cast<char**>(kwlist), &value)) {
+    return nullptr;
+  }
+  g_core->platform->SetDeviceName(Utils::GetValidUTF8(value, "sdn"));
+  Py_RETURN_NONE;
+  BA_PYTHON_CATCH;
+}
+
+static PyMethodDef PySetDeviceNameDef = {
+    "set_device_name",             // name
+    (PyCFunction)PySetDeviceName,  // method
+    METH_VARARGS | METH_KEYWORDS,  // flags
+
+    "set_device_name(name: str) -> None\n"
+    "\n"
+    "(internal)\n"
+    "\n"
+    "Change the device name (what servers show for players with no\n"
+    "account). Used by the web build's in-game name prompt.",
+};
+
 // --------------------------- clipboard_get_text ------------------------------
 
 // REMOVE WHEN API 9 SUPPORT ENDS
@@ -3046,6 +3075,7 @@ auto PythonMoethodsBase3::GetMethods() -> std::vector<PyMethodDef> {
       PyClipboardIsSupportedDef,
       PyClipboardHasTextDef,
       PyClipboardSetTextDef,
+      PySetDeviceNameDef,
       PyClipboardGetTextDef,
       PyClipboardGetTextAsyncDef,
       PyDoOnceDef,

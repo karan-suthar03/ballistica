@@ -194,6 +194,10 @@ class Platform {
   /// results, etc.
   auto GetDeviceName() -> std::string;
 
+  /// Change the device name at runtime (web: set from the in-game name
+  /// prompt). Used for the client spec when joining servers.
+  void SetDeviceName(const std::string& name) { device_name_ = name; }
+
   /// Return a general identifier for the hardware device.
   auto GetDeviceDescription() -> std::string;
 
