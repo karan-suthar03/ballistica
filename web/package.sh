@@ -80,6 +80,8 @@ done
 sed -i "s/Number(headers.get('Content-Length') ?? packageSize)/packageSize/" \
   "$DIST"/*.data.js
 cp "$WEB/ballisticakit.js" "$WEB/ballisticakit.wasm" "$DIST/"
-cp web/shell/index.html "$DIST/"
+cp web/shell/*.html web/shell/*.js web/shell/*.css web/shell/*.png \
+  web/shell/*.webmanifest "$DIST/"
+sed -i "s/__BUILD__/$(date +%s)/g" "$DIST/index.html"
 web/compress.sh >/dev/null
 ls -la "$DIST"

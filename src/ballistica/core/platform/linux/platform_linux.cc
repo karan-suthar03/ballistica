@@ -115,7 +115,18 @@ auto PlatformLinux::GetDeviceUUIDInputs() -> std::list<std::string> {
   return out;
 };
 
-bool PlatformLinux::DoHasTouchScreen() { return false; }
+bool PlatformLinux::DoHasTouchScreen() {
+#if BA_PLATFORM_WEB
+  // The HTML shell sets this when the browser's primary pointer is a
+  // finger (matchMedia('(pointer: coarse)')). Read from the environment
+  // because this runs on the logic thread, where synchronously proxying
+  // to the browser thread could deadlock against the main loop.
+  const char* touch = getenv("BA_WEB_TOUCH");
+  return touch != nullptr && touch[0] == '1';
+#else
+  return false;
+#endif
+}
 
 std::string PlatformLinux::GetLegacyPlatformName() { return "linux"; }
 

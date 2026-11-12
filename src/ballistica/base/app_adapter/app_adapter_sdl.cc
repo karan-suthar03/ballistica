@@ -717,8 +717,39 @@ void AppAdapterSDL::HandleSDLEvent_(const SDL_Event& event) {
       break;
     }
 
+#if BA_PLATFORM_WEB
+    // Browsers on phones deliver touches; feed them to the engine's touch
+    // path, which both drives the on-screen controls (TouchInput) and
+    // turns a single touch into mouse events for the UI. SDL's mouse
+    // events synthesized from the same touches are dropped below so taps
+    // don't register twice.
+    case SDL_EVENT_FINGER_DOWN:
+    case SDL_EVENT_FINGER_UP:
+    case SDL_EVENT_FINGER_MOTION:
+    case SDL_EVENT_FINGER_CANCELED: {
+      const SDL_TouchFingerEvent& f = event.tfinger;
+      TouchEvent te;
+      te.type = event.type == SDL_EVENT_FINGER_DOWN ? TouchEvent::Type::kDown
+                : event.type == SDL_EVENT_FINGER_UP ? TouchEvent::Type::kUp
+                : event.type == SDL_EVENT_FINGER_MOTION
+                    ? TouchEvent::Type::kMoved
+                    : TouchEvent::Type::kCanceled;
+      // Any stable unique pointer-sized id works; +1 keeps it non-null.
+      te.touch = reinterpret_cast<void*>(static_cast<uintptr_t>(f.fingerID + 1));
+      te.x = f.x;
+      te.y = 1.0f - f.y;
+      g_base->input->PushTouchEvent(te);
+      break;
+    }
+#endif
+
     case SDL_EVENT_MOUSE_BUTTON_DOWN: {
       const SDL_MouseButtonEvent* e = &event.button;
+#if BA_PLATFORM_WEB
+      if (e->which == SDL_TOUCH_MOUSEID) {
+        break;
+      }
+#endif
 
       // Convert sdl's coords to normalized view coords. (SDL3 coords are
       // already floats.)
@@ -730,6 +761,11 @@ void AppAdapterSDL::HandleSDLEvent_(const SDL_Event& event) {
 
     case SDL_EVENT_MOUSE_BUTTON_UP: {
       const SDL_MouseButtonEvent* e = &event.button;
+#if BA_PLATFORM_WEB
+      if (e->which == SDL_TOUCH_MOUSEID) {
+        break;
+      }
+#endif
 
       // Convert sdl's coords to normalized view coords.
       float x = e->x / window_size_.x;
@@ -740,6 +776,11 @@ void AppAdapterSDL::HandleSDLEvent_(const SDL_Event& event) {
 
     case SDL_EVENT_MOUSE_MOTION: {
       const SDL_MouseMotionEvent* e = &event.motion;
+#if BA_PLATFORM_WEB
+      if (e->which == SDL_TOUCH_MOUSEID) {
+        break;
+      }
+#endif
 
       // Convert sdl's coords to normalized view coords.
       float x = e->x / window_size_.x;

@@ -15,6 +15,7 @@ joining servers by address don't need any of that.
 
 from __future__ import annotations
 
+import os
 import concurrent.futures
 from typing import TYPE_CHECKING
 
@@ -30,9 +31,21 @@ _OFFLINE_MSG = 'Cloud functionality is not available in web builds.'
 # ---------------------------------------------------------------------------
 
 
+def web_stage(name: str) -> None:
+    """Tell the HTML shell's loading screen which startup stage we're in.
+
+    Written straight to fd 1 (Emscripten routes it to Module.print, where
+    the shell picks up '@@stage <name>' lines) so it doesn't depend on
+    the engine's stdout redirection or log levels.
+    """
+    os.write(1, f'@@stage {name}\n'.encode())
+
+
 def on_app_loading() -> None:
     """Called by PlusAppSubsystem.on_app_loading()."""
     import _babase
+
+    web_stage('loading')
 
     # Native builds always end up with this config key (empty when there
     # are no saved profiles); the lobby reads it unconditionally when a
@@ -297,6 +310,10 @@ def attach(plus: PlusAppSubsystem) -> None:
             if self._web_accounts is None:
                 self._web_accounts = _make_accounts()
             return self._web_accounts
+
+        def on_app_running(self) -> None:
+            super().on_app_running()
+            web_stage('running')
 
     WebPlusAppSubsystem.__name__ = base_cls.__name__
     WebPlusAppSubsystem.__qualname__ = base_cls.__qualname__

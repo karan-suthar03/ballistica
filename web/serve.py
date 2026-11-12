@@ -28,6 +28,7 @@ TYPES = {
     '.js': 'text/javascript',
     '.data': 'application/octet-stream',
     '.html': 'text/html; charset=utf-8',
+    '.webmanifest': 'application/manifest+json',
 }
 # Preferred first.
 ENCODINGS = (('br', '.br'), ('gzip', '.gz'))

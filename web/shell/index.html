@@ -4,22 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BombSquad">
+<meta name="theme-color" content="#0a0e1a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <title>BombSquad Web</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
-  #status { position: fixed; left: 0; right: 0; bottom: 12px; text-align: center;
-            color: #ccc; font: 14px system-ui, sans-serif; pointer-events: none; }
-  #start { position: fixed; inset: 0; display: flex; align-items: center;
-           justify-content: center; background: #000; color: #fff;
-           font: 600 22px system-ui, sans-serif; cursor: pointer; }
-  #start[hidden] { display: none; }
 </style>
+<link rel="stylesheet" href="loader.css?v=__BUILD__">
 </head>
 <body>
 <canvas id="canvas" tabindex="-1"></canvas>
-<div id="status">Loading…</div>
-<div id="start" hidden>Tap to start</div>
+<div id="loader">
+  <img class="logo" src="logo.png?v=__BUILD__" alt="">
+  <h1>Bomb<span>Squad</span></h1>
+  <div class="panel">
+    <div class="row"><span class="stage">Getting ready</span><span class="pct">0%</span></div>
+    <div class="track"><div class="fill"></div></div>
+    <p class="hint">The first visit downloads the game (about 55 MB).<br>Later visits load from your browser's cache.</p>
+  </div>
+</div>
+<div id="rotate"><img src="logo.png?v=__BUILD__" alt=""><p>Rotate your phone to landscape</p></div>
+<script src="loader.js?v=__BUILD__"></script>
+<script src="fullscreen.js?v=__BUILD__"></script>
 <script>
   // Mirror all engine output to the dev server (POST /log) so it can be
   // read without browser devtools (handy on iPhone).
@@ -41,29 +53,43 @@
 
   log('out', `ua=${navigator.userAgent} crossOriginIsolated=${self.crossOriginIsolated}`);
 
-  const status = document.getElementById('status');
+  // Stamped by package.sh. Every file URL carries it, so a new build is a
+  // new URL: Cloudflare's Browser Cache TTL overrides our no-cache with
+  // max-age=14400, and a stale .data.js against a fresh .data hands
+  // Python garbage files ("Failed to import encodings module").
+  const BUILD = '__BUILD__';
   var Module = {
     canvas: document.getElementById('canvas'),
-    print: t => log('out', t),
+    locateFile: path => `${path}?v=${BUILD}`,
+    print: t => {
+      if (t.startsWith('@@stage ')) Loader.stage(t.slice(8));
+      log('out', t);
+    },
     printErr: t => log('err', t),
     setStatus: t => {
-      // "Downloading data... (a/b)" -> "Downloading… 20%". The counts are
-      // unpacked sizes; the transfer is brotli-compressed (~55% of that),
-      // so MB figures would overstate it. Show progress only.
+      // "Downloading data... (a/b)": unpacked byte counts (the transfer
+      // itself is brotli-compressed), so only the ratio is shown.
       const m = /\((\d+)\/(\d+)\)/.exec(t || '');
       if (m) {
-        status.textContent = `Downloading… ${Math.floor(100 * m[1] / m[2])}%`;
+        Loader.download(+m[1], +m[2]);
         return;
       }
-      status.textContent = t;
       if (t) log('out', `status: ${t}`);
     },
-    onAbort: what => log('err', `ABORT: ${what}`),
-    onRuntimeInitialized: () => { status.textContent = ''; log('out', 'runtime initialized'); },
+    onAbort: what => { log('err', `ABORT: ${what}`); Loader.error('The game crashed'); },
+    onRuntimeInitialized: () => { Loader.engine(); log('out', 'runtime initialized'); },
     // ?log=ba=DEBUG,ba.assetmanager=DEBUG -> BA_LOG_LEVELS for the engine.
     preRun: [() => {
       // The engine must want exactly the texture set we loaded.
       Module.ENV.BA_FORCE_TEXTURE_PROFILE = Module.texProfile;
+      // Phones/tablets: enables the engine's on-screen touch controls.
+      // Phones/tablets: on-screen touch controls, plus the UI layout the
+      // native apps use (phone 'small' = biggest buttons; tablet 'medium').
+      if (matchMedia('(pointer: coarse)').matches) {
+        Module.ENV.BA_WEB_TOUCH = '1';
+        const shortSide = Math.min(screen.width, screen.height);
+        Module.ENV.BA_UI_SCALE = shortSide < 600 ? 'small' : 'medium';
+      }
       const levels = new URLSearchParams(location.search).get('log');
       if (levels) {
         Module.ENV.BA_LOG_LEVELS = levels;
@@ -93,7 +119,7 @@
     for (const src of ['ballisticakit.data.js', `tex-${profile}.data.js`,
                        'ballisticakit.js']) {
       const s = document.createElement('script');
-      s.src = src;
+      s.src = `${src}?v=${BUILD}`;
       s.async = false;
       document.body.appendChild(s);
     }
