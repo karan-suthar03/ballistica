@@ -118,6 +118,10 @@ class App:
         if sys.platform == 'emscripten' and 'Screen Insets' not in self.config:
             self.config['Screen Insets'] = 'Custom'
             self.config['Custom Screen Insets'] = 0.2
+        # Web: lowest graphics quality by default for now (phones/browsers
+        # struggle); the Graphics setting still overrides.
+        if sys.platform == 'emscripten' and 'Graphics Quality' not in self.config:
+            self.config['Graphics Quality'] = 'Low'
         _babase.set_app_config(self.config)
 
         #: Static environment values for the app.
