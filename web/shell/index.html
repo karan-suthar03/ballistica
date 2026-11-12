@@ -80,6 +80,8 @@
   // reports it as '@@name <name>' and we remember it here, passing it
   // back as BA_DEVICE_NAME on the next visit.
   const NAME_KEY = 'baPlayerName';
+  const CONFIG_KEY = 'baConfig';
+  const CONFIG_DIR = '/home/web_user/.ballisticakit';
   let playerName = '';
   try { playerName = (localStorage.getItem(NAME_KEY) || '').trim().slice(0, 16); } catch (e) {}
 
@@ -88,6 +90,12 @@
     locateFile: path => `${path}?v=${BUILD}`,
     print: t => {
       if (t.startsWith('@@stage ')) Loader.stage(t.slice(8));
+      // The game's config (profiles, settings): saved on every commit,
+      // restored in preRun. The virtual FS itself is in memory only.
+      if (t.startsWith('@@config ')) {
+        try { localStorage.setItem(CONFIG_KEY, t.slice(9)); } catch (e) { log('err', `config save: ${e}`); }
+        return;
+      }
       if (t.startsWith('@@name ')) {
         try { localStorage.setItem(NAME_KEY, t.slice(7).trim().slice(0, 16)); } catch (e) {}
         return;
@@ -133,6 +141,14 @@
         Module.FS.writeFile('/etc/machine-id', mid + '\n');
       } catch (e) { log('err', `machine-id: ${e}`); }
       if (playerName) Module.ENV.BA_DEVICE_NAME = playerName;
+      // Restore the saved game config before the engine reads it.
+      try {
+        const cfg = localStorage.getItem(CONFIG_KEY);
+        if (cfg) {
+          Module.FS.mkdirTree(CONFIG_DIR);
+          Module.FS.writeFile(`${CONFIG_DIR}/config.json`, cfg);
+        }
+      } catch (e) { log('err', `config restore: ${e}`); }
       // ?server=ip:port: which server the Gather button joins.
       const server = new URLSearchParams(location.search).get('server');
       if (server) Module.ENV.BA_HOME_SERVER = server;
