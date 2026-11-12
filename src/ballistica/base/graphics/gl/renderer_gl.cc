@@ -397,7 +397,12 @@ void RendererGL::CheckGLCapabilities_() {
   }
 
   // ASTC is generally available on newer mobile hardware.
-  if (CheckGLExtension(extensions, "texture_compression_astc_ldr")) {
+  // WebGL exposes it as WEBGL_compressed_texture_astc (LDR profile),
+  // which Emscripten reports with a "GL_" prefix.
+  if (CheckGLExtension(extensions, "texture_compression_astc_ldr")
+      || std::find(extensions.begin(), extensions.end(),
+                   "GL_WEBGL_compressed_texture_astc")
+             != extensions.end()) {
     c_types.push_back(TextureCompressionType::kASTC);
   }
 

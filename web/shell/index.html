@@ -46,11 +46,24 @@
     canvas: document.getElementById('canvas'),
     print: t => log('out', t),
     printErr: t => log('err', t),
-    setStatus: t => { status.textContent = t; if (t) log('out', `status: ${t}`); },
+    setStatus: t => {
+      // "Downloading data... (a/b)" -> "Downloading… 12 / 60 MB (20%)".
+      const m = /\((\d+)\/(\d+)\)/.exec(t || '');
+      if (m) {
+        const mb = n => (n / 1e6).toFixed(0);
+        status.textContent = `Downloading… ${mb(m[1])} / ${mb(m[2])} MB` +
+          ` (${Math.floor(100 * m[1] / m[2])}%)`;
+        return;
+      }
+      status.textContent = t;
+      if (t) log('out', `status: ${t}`);
+    },
     onAbort: what => log('err', `ABORT: ${what}`),
     onRuntimeInitialized: () => { status.textContent = ''; log('out', 'runtime initialized'); },
     // ?log=ba=DEBUG,ba.assetmanager=DEBUG -> BA_LOG_LEVELS for the engine.
     preRun: [() => {
+      // The engine must want exactly the texture set we loaded.
+      Module.ENV.BA_FORCE_TEXTURE_PROFILE = Module.texProfile;
       const levels = new URLSearchParams(location.search).get('log');
       if (levels) {
         Module.ENV.BA_LOG_LEVELS = levels;
@@ -59,7 +72,32 @@
     }],
   };
 </script>
-<script src="ballisticakit.data.js"></script>
-<script src="ballisticakit.js"></script>
+<script>
+  // Load base data, the one texture package this GPU can use, then the
+  // engine. Same order as Assets::PreferredTextureProfile on web: BC7 ->
+  // desktop_v1, ASTC -> mobile_v1, else fallback_v1. ?tex=<profile>
+  // overrides.
+  (() => {
+    let profile = new URLSearchParams(location.search).get('tex');
+    if (!profile) {
+      const gl = document.createElement('canvas').getContext('webgl2');
+      const exts = (gl && gl.getSupportedExtensions()) || [];
+      profile = exts.includes('EXT_texture_compression_bptc') ? 'desktop_v1'
+        : exts.includes('WEBGL_compressed_texture_astc') ? 'mobile_v1'
+        : 'fallback_v1';
+      const lose = gl && gl.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+    }
+    log('out', `texture profile: ${profile}`);
+    Module.texProfile = profile;
+    for (const src of ['ballisticakit.data.js', `tex-${profile}.data.js`,
+                       'ballisticakit.js']) {
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = false;
+      document.body.appendChild(s);
+    }
+  })();
+</script>
 </body>
 </html>

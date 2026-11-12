@@ -1899,6 +1899,24 @@ auto Assets::PreferredTextureProfile() const -> std::string {
   // decision made before then safely lands on fallback rather than racing.
   // Both compressed profiles are decoded by the KTX2 loader.
   auto* gs = g_base->graphics_server;
+
+#if BA_PLATFORM_WEB
+  // Web: one binary serves desktop and phone browsers, so the form factor
+  // isn't known at build time. WebGL exposes BC7 essentially only on
+  // desktop GPUs and ASTC essentially only on mobile ones, so the format
+  // support picks the family. The shell loads only the matching texture
+  // package (see web/shell/index.html), using this same order.
+  if (gs->SupportsTextureCompressionTypeThreadsafe(
+          TextureCompressionType::kBPTC)) {
+    return "desktop_v1";
+  }
+  if (gs->SupportsTextureCompressionTypeThreadsafe(
+          TextureCompressionType::kASTC)) {
+    return "mobile_v1";
+  }
+  return "fallback_v1";
+#endif
+
   if (mobile) {
     // Mobile: ASTC LDR if the GPU exposes it, else the universal fallback.
     // iOS/tvOS always have ASTC; only a small, shrinking tail of older

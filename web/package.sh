@@ -44,23 +44,42 @@ cp "$SYSCFG"/_sysconfigdata_*.py "$SYSCFG"/_sysconfig_vars_*.json "$ROOT/pylib/"
 # native (plus-enabled) build already downloaded. With every desired
 # flavor present locally, the asset subsystem takes its offline fast path.
 # Lands at ~/.ballisticakit/cache in the virtual FS (HOME=/home/web_user).
+# One cache per texture profile: desktop from the native build's own
+# cache, the others from web/fetch_flavors.sh. split_assets.py merges
+# their manifests and splits each profile's textures into its own
+# package, so a browser only downloads the set its GPU can use.
 NATIVE_CACHE="${NATIVE_CACHE:-$HOME/.ballisticakit/cache}"
-if [ -f "$NATIVE_CACHE/manifest.json" ]; then
-  WEBCACHE="$ROOT/home/web_user/.ballisticakit/cache"
-  mkdir -p "$WEBCACHE"
-  cp "$NATIVE_CACHE/manifest.json" "$WEBCACHE/"
-  rsync -a "$NATIVE_CACHE/assets/" "$WEBCACHE/assets/"
-else
-  echo "WARNING: no native asset cache at $NATIVE_CACHE;" \
-    "run the native build once so it downloads assets." >&2
-fi
+FLAVORS=$WEB/flavor-caches
+SPLIT=$WEB/assets-split
+CACHE_VFS=/home/web_user/.ballisticakit/cache
+PROFILES="desktop_v1 mobile_v1 fallback_v1"
+args=("desktop_v1=$NATIVE_CACHE")
+for p in mobile_v1 fallback_v1; do
+  [ -f "$FLAVORS/$p/manifest.json" ] || {
+    echo "missing $FLAVORS/$p; run web/fetch_flavors.sh $p" >&2; exit 1; }
+  args+=("$p=$FLAVORS/$p")
+done
+python3 web/split_assets.py "$SPLIT" "${args[@]}"
+mkdir -p "$ROOT$CACHE_VFS"
+rsync -a "$SPLIT/base/" "$ROOT$CACHE_VFS/"
 
 echo "virtual FS contents:"; du -sh "$ROOT"/*
 
 python3 "$EMSDK/upstream/emscripten/tools/file_packager.py" \
   "$DIST/ballisticakit.data" --preload "$ROOT@/" \
   --js-output="$DIST/ballisticakit.data.js" --no-node >/dev/null
+for p in $PROFILES; do
+  python3 "$EMSDK/upstream/emscripten/tools/file_packager.py" \
+    "$DIST/tex-$p.data" --preload "$SPLIT/tex-$p@$CACHE_VFS" \
+    --js-output="$DIST/tex-$p.data.js" --no-node >/dev/null
+done
 
+# file_packager's progress divides decompressed bytes read by the
+# Content-Length, which is the compressed size when serve.py sends .br/.gz.
+# Use the package's real size instead.
+sed -i "s/Number(headers.get('Content-Length') ?? packageSize)/packageSize/" \
+  "$DIST"/*.data.js
 cp "$WEB/ballisticakit.js" "$WEB/ballisticakit.wasm" "$DIST/"
 cp web/shell/index.html "$DIST/"
+web/compress.sh >/dev/null
 ls -la "$DIST"
