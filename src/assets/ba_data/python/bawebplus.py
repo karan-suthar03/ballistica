@@ -58,6 +58,15 @@ def on_app_loading() -> None:
     # player joins, so make sure it exists.
     profiles = _babase.app.config.setdefault('Player Profiles', {})
 
+    # Phones/tablets (the page sets BA_WEB_TOUCH): the browser never pops
+    # up the phone's keyboard for our canvas, so text fields (name, chat,
+    # join address) use the game's own on-screen keyboard instead.
+    if sys.platform == 'emscripten' and os.environ.get('BA_WEB_TOUCH') == '1':
+        cfg = _babase.app.config
+        if not cfg.get('Always Use Internal Keyboard', False):
+            cfg['Always Use Internal Keyboard'] = True
+            cfg.apply()
+
     # Web: the player's name (asked in-game, remembered by the page and
     # passed back as BA_DEVICE_NAME) becomes a real player profile. With
     # no account the lobby otherwise only has '_random' and hands out
